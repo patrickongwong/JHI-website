@@ -1753,7 +1753,7 @@ function draw() {
     // Vignette effect
     const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.75);
     vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    vigGrad.addColorStop(1, tod === 'night' ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.1)');
+    vigGrad.addColorStop(1, (tod === 'night' || tod === 'storm') ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.1)');
     ctx.fillStyle = vigGrad;
     ctx.fillRect(0, 0, W, H);
 
@@ -2555,7 +2555,7 @@ function generateScoreImage() {
     cx.fillText('Scorecard', 300, 80);
 
     // Hole headers
-    const colW = 70, startX = 90, rowY = 120;
+    const colW = 55, startX = 55, rowY = 120;
     cx.font = 'bold 14px Georgia, serif';
     cx.fillStyle = 'rgba(255,255,255,0.5)';
     cx.textAlign = 'center';
