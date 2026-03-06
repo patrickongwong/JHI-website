@@ -598,6 +598,7 @@ body {
     margin-bottom: 20px;
     font-size: 1.05rem;
     line-height: 1.9;
+    text-align: justify;
 }
 
 .about-stats {

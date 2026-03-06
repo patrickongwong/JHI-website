@@ -450,24 +450,36 @@ document.querySelectorAll('.section-title, .section-subtitle, .section-badge, .a
 
 // ==================== STAT COUNTER ANIMATION ====================
 
+function animateCounter(stat) {
+    const target = parseInt(stat.dataset.target);
+    const numberEl = stat.querySelector('.stat-number');
+    const prefix = stat.dataset.prefix || '';
+    const suffix = stat.dataset.suffix || '';
+    const duration = 2000; // ms
+    const startTime = performance.now();
+
+    function update(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Ease-out: fast start, slow finish
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(eased * target);
+
+        numberEl.textContent = prefix + current + (suffix || '');
+
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+
+    requestAnimationFrame(update);
+}
+
 const statObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
-            const stat = entry.target;
-            const target = parseInt(stat.dataset.target);
-            const numberEl = stat.querySelector('.stat-number');
-            const prefix = stat.dataset.prefix || '';
-            const suffix = stat.dataset.suffix || '';
-            let current = 0;
-            const stepTime = 1500 / target;
-
-            const counter = setInterval(() => {
-                current++;
-                numberEl.textContent = prefix + current + (suffix || '');
-                if (current >= target) clearInterval(counter);
-            }, stepTime);
-
-            statObserver.unobserve(stat);
+            animateCounter(entry.target);
+            statObserver.unobserve(entry.target);
         }
     });
 }, { threshold: 0.5 });
