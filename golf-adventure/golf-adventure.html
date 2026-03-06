@@ -322,6 +322,19 @@ function saveProgress() {
     localStorage.setItem('jhi-equip-shirt', equipment.shirt);
 }
 
+// ==================== CHARACTER ====================
+let hasCompletedGame = localStorage.getItem('jhi-golf-completed') === 'true';
+let patrickUnlocked = localStorage.getItem('jhi-patrick-unlocked') === 'true';
+let activeCharacter = localStorage.getItem('jhi-active-character') || 'jj'; // 'jj' or 'patrick'
+let psychicMode = false; // when Patrick is active and player is "hitting"
+let psychicBallTarget = null; // {x, y} where cursor is pointing
+
+function saveCharacterState() {
+    localStorage.setItem('jhi-golf-completed', hasCompletedGame);
+    localStorage.setItem('jhi-patrick-unlocked', patrickUnlocked);
+    localStorage.setItem('jhi-active-character', activeCharacter);
+}
+
 const CLUB_TIERS = [
     { name: 'Copper', power: 1.0, damage: 1, color: '#b87333' },
     { name: 'Silver', power: 1.2, damage: 2, color: '#c0c0c0' },
@@ -623,6 +636,8 @@ function initHole() {
     strokes = 0;
     aiming = false;
     mobileHitMode = false;
+    psychicMode = false;
+    psychicBallTarget = null;
     cameraX = 0;
     particles = [];
 
@@ -667,6 +682,23 @@ btnHit.addEventListener('click', e => {
 });
 
 function handleMobileHit() {
+    if (activeCharacter === 'patrick') {
+        if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
+        if (!playerNearBall()) return;
+        if (!psychicMode) {
+            psychicMode = true;
+            psychicBallTarget = { x: ball.x, y: ball.y - 50 };
+            strokes++;
+            document.getElementById('strokeNum').textContent = strokes;
+        } else {
+            psychicMode = false;
+            psychicBallTarget = null;
+            ball.onGround = false;
+            ball.justHit = 0;
+        }
+        return;
+    }
+
     if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
     if (!playerNearBall()) return;
 
@@ -728,6 +760,15 @@ function playerNearBall() {
 }
 
 function startAim(pos) {
+    if (activeCharacter === 'patrick') {
+        if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
+        if (!playerNearBall()) return;
+        psychicMode = true;
+        psychicBallTarget = { x: pos.x, y: pos.y };
+        strokes++;
+        document.getElementById('strokeNum').textContent = strokes;
+        return;
+    }
     if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
     if (!playerNearBall()) return;
     const dx = pos.x - ball.x, dy = pos.y - ball.y;
@@ -738,11 +779,22 @@ function startAim(pos) {
 }
 
 function moveAim(pos) {
+    if (activeCharacter === 'patrick' && psychicMode) {
+        psychicBallTarget = { x: pos.x, y: pos.y };
+        return;
+    }
     if (!aiming) return;
     aimEnd = { ...pos };
 }
 
 function endAim(pos) {
+    if (activeCharacter === 'patrick' && psychicMode) {
+        psychicMode = false;
+        psychicBallTarget = null;
+        ball.onGround = false;
+        ball.justHit = 0;
+        return;
+    }
     if (!aiming) return;
     aiming = false;
     const dx = aimStart.x - aimEnd.x;
@@ -847,6 +899,16 @@ function update() {
     // --- Ball physics ---
     if (ball.active) {
         if (ball.justHit > 0) ball.justHit--;
+
+        // Psychic levitation
+        if (activeCharacter === 'patrick' && psychicMode && psychicBallTarget) {
+            const pdx = psychicBallTarget.x - ball.x;
+            const pdy = psychicBallTarget.y - ball.y;
+            ball.vx = pdx * 0.12;
+            ball.vy = pdy * 0.12;
+            ball.onGround = false;
+            ball.justHit = 5;
+        }
 
         if (!ball.onGround) {
             // Gravity
@@ -1599,6 +1661,18 @@ function draw() {
             ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
             ctx.fill();
         }
+        // Psychic glow
+        if (activeCharacter === 'patrick' && psychicMode) {
+            const pGlow = 0.3 + 0.15 * Math.sin(gameTime * 0.1);
+            ctx.fillStyle = `rgba(138, 43, 226, ${pGlow})`;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.r + 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Purple trail particles
+            if (gameTime % 3 === 0) {
+                spawnParticles(ball.x, ball.y, '#8a2be2', 1, 1);
+            }
+        }
         // Ball with better shading
         const bGrad = ctx.createRadialGradient(ball.x - ball.r * 0.3, ball.y - ball.r * 0.3, ball.r * 0.1, ball.x, ball.y, ball.r);
         bGrad.addColorStop(0, '#fff');
@@ -1621,7 +1695,7 @@ function draw() {
     }
 
     // --- Aim line ---
-    if (aiming) {
+    if (aiming && activeCharacter === 'jj') {
         const dx = aimStart.x - aimEnd.x;
         const dy = aimStart.y - aimEnd.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1949,6 +2023,13 @@ function drawPlayer() {
     const legTop = torsoBot;
     const footY = H;
 
+    const lFootX = (-5 - legSwing) * u;
+    const rFootX = (5 + legSwing) * u;
+    const nearBall = Math.abs(player.x - ball.x) < HIT_RANGE && ball.onGround;
+
+    if (activeCharacter === 'patrick') {
+        drawPatrickBody(u, headTop, headCenter, neckY, torsoTop, torsoBot, legTop, footY, H, legSwing, lFootX, rFootX, nearBall);
+    } else {
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.beginPath();
@@ -1963,14 +2044,12 @@ function drawPlayer() {
     ctx.lineWidth = 5 * u;
     ctx.beginPath();
     ctx.moveTo(-4 * u, legTop);
-    const lFootX = (-5 - legSwing) * u;
     ctx.lineTo(lFootX, footY - 3 * u);
     ctx.stroke();
 
     // Right leg
     ctx.beginPath();
     ctx.moveTo(4 * u, legTop);
-    const rFootX = (5 + legSwing) * u;
     ctx.lineTo(rFootX, footY - 3 * u);
     ctx.stroke();
 
@@ -2099,7 +2178,6 @@ function drawPlayer() {
     ctx.stroke();
 
     // Right sleeve + arm (holding club if near ball)
-    const nearBall = Math.abs(player.x - ball.x) < HIT_RANGE && ball.onGround;
     ctx.strokeStyle = shirtColors[1];
     ctx.lineWidth = 5 * u;
     ctx.beginPath();
@@ -2199,24 +2277,282 @@ function drawPlayer() {
     ctx.lineTo(0.5 * u, headCenter + 2.5 * u);
     ctx.stroke();
 
-    // Smile
-    ctx.strokeStyle = '#8a5a3a';
-    ctx.lineWidth = 1 * u;
-    ctx.beginPath();
-    ctx.arc(0, headCenter + 3 * u, 3.5 * u, 0.1, Math.PI - 0.1);
-    ctx.stroke();
+    // Expression based on time of day (JJ only)
+    {
+        const tod = gameMode === 'shop' ? 'day' : getTimeOfDay();
+        ctx.strokeStyle = '#8a5a3a';
+        ctx.lineWidth = 1 * u;
+        if (tod === 'day') {
+            // Big smile
+            ctx.beginPath();
+            ctx.arc(0, headCenter + 3 * u, 3.5 * u, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+        } else if (tod === 'afternoon') {
+            // Slight smile / neutral
+            ctx.beginPath();
+            ctx.moveTo(-3 * u, headCenter + 4.5 * u);
+            ctx.lineTo(3 * u, headCenter + 4.5 * u);
+            ctx.stroke();
+        } else if (tod === 'night') {
+            // Worried - slight frown
+            ctx.beginPath();
+            ctx.arc(0, headCenter + 6 * u, 3 * u, Math.PI + 0.3, -0.3);
+            ctx.stroke();
+        } else {
+            // Storm - scared! Open mouth, eyebrows up
+            // Scared open mouth
+            ctx.fillStyle = '#5a2a1a';
+            ctx.beginPath();
+            ctx.ellipse(0, headCenter + 4.5 * u, 2.5 * u, 2 * u, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Eyebrow raise (draw raised eyebrows above the glasses)
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 1.2 * u;
+            ctx.beginPath();
+            ctx.moveTo(-7 * u, headCenter - 5 * u);
+            ctx.quadraticCurveTo(-4 * u, headCenter - 7 * u, -1 * u, headCenter - 5 * u);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(1 * u, headCenter - 5 * u);
+            ctx.quadraticCurveTo(4 * u, headCenter - 7 * u, 7 * u, headCenter - 5 * u);
+            ctx.stroke();
+        }
+    }
+
+    } // end JJ character
 
     if (playerFlashing) ctx.globalAlpha = 1;
     ctx.restore();
 }
 
+function drawPatrickBody(u, headTop, headCenter, neckY, torsoTop, torsoBot, legTop, footY, H, legSwing, lFootX, rFootX, nearBall) {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(0, H, 14 * u, 4 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs (dark jeans)
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#2a2a3a';
+    ctx.lineWidth = 5 * u;
+    ctx.beginPath();
+    ctx.moveTo(-4 * u, legTop);
+    ctx.lineTo(lFootX, footY - 3 * u);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(4 * u, legTop);
+    ctx.lineTo(rFootX, footY - 3 * u);
+    ctx.stroke();
+
+    // Shoes (sneakers)
+    ctx.fillStyle = '#eee';
+    ctx.beginPath();
+    ctx.roundRect(lFootX - 3 * u, footY - 4 * u, 8 * u, 5 * u, 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(rFootX - 3 * u, footY - 4 * u, 8 * u, 5 * u, 2);
+    ctx.fill();
+
+    // Body (dark purple polo)
+    const shirtGrad = ctx.createLinearGradient(-8 * u, torsoTop, 8 * u, torsoBot);
+    shirtGrad.addColorStop(0, '#3a2a5a');
+    shirtGrad.addColorStop(0.5, '#2d2050');
+    shirtGrad.addColorStop(1, '#1a1040');
+    ctx.fillStyle = shirtGrad;
+    ctx.beginPath();
+    ctx.moveTo(-9 * u, torsoTop);
+    ctx.lineTo(9 * u, torsoTop);
+    ctx.lineTo(8 * u, torsoBot);
+    ctx.lineTo(-8 * u, torsoBot);
+    ctx.closePath();
+    ctx.fill();
+
+    // Collar
+    ctx.strokeStyle = '#1a1040';
+    ctx.lineWidth = 1.5 * u;
+    ctx.beginPath();
+    ctx.moveTo(-5 * u, torsoTop);
+    ctx.lineTo(0, torsoTop + 2 * u);
+    ctx.lineTo(5 * u, torsoTop);
+    ctx.stroke();
+
+    // Belt
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(-8 * u, torsoBot - 2 * u, 16 * u, 3 * u);
+
+    // Arms
+    ctx.lineCap = 'round';
+
+    // Left sleeve + arm
+    ctx.strokeStyle = '#2d2050';
+    ctx.lineWidth = 5 * u;
+    ctx.beginPath();
+    ctx.moveTo(-9 * u, torsoTop + 2 * u);
+    ctx.lineTo(-12 * u, torsoTop + 8 * u);
+    ctx.stroke();
+
+    if (nearBall || psychicMode) {
+        // Both arms raised for psychic power
+        ctx.strokeStyle = '#e8c89e';
+        ctx.lineWidth = 3.5 * u;
+        // Left arm raised
+        ctx.beginPath();
+        ctx.moveTo(-12 * u, torsoTop + 8 * u);
+        ctx.lineTo(-14 * u, torsoTop - 2 * u);
+        ctx.stroke();
+        // Right sleeve
+        ctx.strokeStyle = '#2d2050';
+        ctx.lineWidth = 5 * u;
+        ctx.beginPath();
+        ctx.moveTo(9 * u, torsoTop + 2 * u);
+        ctx.lineTo(12 * u, torsoTop + 8 * u);
+        ctx.stroke();
+        // Right arm raised
+        ctx.strokeStyle = '#e8c89e';
+        ctx.lineWidth = 3.5 * u;
+        ctx.beginPath();
+        ctx.moveTo(12 * u, torsoTop + 8 * u);
+        ctx.lineTo(14 * u, torsoTop - 2 * u);
+        ctx.stroke();
+
+        // Psychic glow around hands
+        const glowPulse = 0.3 + 0.2 * Math.sin(gameTime * 0.08);
+        ctx.fillStyle = `rgba(138, 43, 226, ${glowPulse})`;
+        ctx.beginPath();
+        ctx.arc(-14 * u, torsoTop - 4 * u, 5 * u, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(14 * u, torsoTop - 4 * u, 5 * u, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        ctx.strokeStyle = '#e8c89e';
+        ctx.lineWidth = 3.5 * u;
+        ctx.beginPath();
+        ctx.moveTo(-12 * u, torsoTop + 8 * u);
+        ctx.lineTo(-13 * u, torsoBot - 2 * u);
+        ctx.stroke();
+        // Right arm
+        ctx.strokeStyle = '#2d2050';
+        ctx.lineWidth = 5 * u;
+        ctx.beginPath();
+        ctx.moveTo(9 * u, torsoTop + 2 * u);
+        ctx.lineTo(12 * u, torsoTop + 8 * u);
+        ctx.stroke();
+        ctx.strokeStyle = '#e8c89e';
+        ctx.lineWidth = 3.5 * u;
+        ctx.beginPath();
+        ctx.moveTo(12 * u, torsoTop + 8 * u);
+        ctx.lineTo(14 * u, torsoBot - 2 * u);
+        ctx.stroke();
+    }
+
+    // Head (slightly lighter/warmer East Asian skin tone)
+    ctx.fillStyle = '#e8c89e';
+    ctx.beginPath();
+    ctx.ellipse(0, headCenter, 9 * u, 9.5 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears
+    ctx.fillStyle = '#d4b088';
+    ctx.beginPath();
+    ctx.ellipse(-9 * u, headCenter, 2 * u, 3 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(9 * u, headCenter, 2 * u, 3 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hair (straight black, neat)
+    ctx.fillStyle = '#0a0a0a';
+    ctx.beginPath();
+    ctx.ellipse(0, headTop + 1.5 * u, 9 * u, 5.5 * u, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    // Side hair
+    ctx.fillRect(-9.5 * u, headTop + 1.5 * u, 2 * u, 6 * u);
+    ctx.fillRect(7.5 * u, headTop + 1.5 * u, 2 * u, 6 * u);
+
+    // Glasses (rectangular, slightly larger)
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1.5 * u;
+    ctx.strokeRect(-7.5 * u, headCenter - 3 * u, 6.5 * u, 5 * u);
+    ctx.strokeRect(1 * u, headCenter - 3 * u, 6.5 * u, 5 * u);
+    ctx.beginPath();
+    ctx.moveTo(-1 * u, headCenter - 0.5 * u);
+    ctx.lineTo(1 * u, headCenter - 0.5 * u);
+    ctx.stroke();
+    // Temple arms
+    ctx.beginPath();
+    ctx.moveTo(-7.5 * u, headCenter - 1.5 * u);
+    ctx.lineTo(-9.5 * u, headCenter - 2 * u);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(7.5 * u, headCenter - 1.5 * u);
+    ctx.lineTo(9.5 * u, headCenter - 2 * u);
+    ctx.stroke();
+    // Lens tint (slight purple tint for psychic theme)
+    ctx.fillStyle = 'rgba(138, 43, 226, 0.08)';
+    ctx.fillRect(-7.5 * u, headCenter - 3 * u, 6.5 * u, 5 * u);
+    ctx.fillRect(1 * u, headCenter - 3 * u, 6.5 * u, 5 * u);
+
+    // Concentrating eyes when near ball (psychic focus)
+    if (nearBall || psychicMode) {
+        // Glowing purple eyes
+        ctx.fillStyle = '#8a2be2';
+        ctx.beginPath();
+        ctx.arc(-4 * u, headCenter, 1.5 * u, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(4.5 * u, headCenter, 1.5 * u, 0, Math.PI * 2);
+        ctx.fill();
+        // Eye glow
+        ctx.fillStyle = 'rgba(138, 43, 226, 0.3)';
+        ctx.beginPath();
+        ctx.arc(-4 * u, headCenter, 3 * u, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(4.5 * u, headCenter, 3 * u, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        // Normal dark eyes
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.arc(-4 * u, headCenter, 1.2 * u, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(4.5 * u, headCenter, 1.2 * u, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Nose
+    ctx.strokeStyle = '#c8a878';
+    ctx.lineWidth = 0.8 * u;
+    ctx.beginPath();
+    ctx.moveTo(0, headCenter + 0.5 * u);
+    ctx.lineTo(0.5 * u, headCenter + 3 * u);
+    ctx.stroke();
+
+    // Smile (always calm/confident)
+    ctx.strokeStyle = '#a07858';
+    ctx.lineWidth = 1 * u;
+    ctx.beginPath();
+    ctx.moveTo(-2.5 * u, headCenter + 4.5 * u);
+    ctx.quadraticCurveTo(0, headCenter + 5.5 * u, 2.5 * u, headCenter + 4.5 * u);
+    ctx.stroke();
+}
+
 // ==================== PRO SHOP ====================
-const shopPedestals = [
-    { type: 'club',  label: '+ Power',   x: 200 },
-    { type: 'shaft', label: '+ Control', x: 400 },
-    { type: 'boots', label: '+ Jump',    x: 600 },
-    { type: 'shirt', label: '+ Health',  x: 800 }
-];
+function getShopPedestals() {
+    const peds = [
+        { type: 'club',  label: '+ Power',   x: 200 },
+        { type: 'shaft', label: '+ Control', x: 400 },
+        { type: 'boots', label: '+ Jump',    x: 600 },
+        { type: 'shirt', label: '+ Health',  x: 800 }
+    ];
+    if (hasCompletedGame) {
+        peds.push({ type: 'character', label: 'Patrick Wong', x: 780 });
+    }
+    return peds;
+}
 
 let shopMessage = '';
 let shopMessageTimer = 0;
@@ -2279,8 +2615,34 @@ function updateShop() {
 }
 
 function tryBuy() {
-    for (const ped of shopPedestals) {
+    const pedList = getShopPedestals();
+    for (const ped of pedList) {
         if (Math.abs(player.x - ped.x) > 50) continue;
+
+        if (ped.type === 'character') {
+            if (patrickUnlocked) {
+                // Toggle character
+                activeCharacter = activeCharacter === 'jj' ? 'patrick' : 'jj';
+                saveCharacterState();
+                shopMessage = 'Switched to ' + (activeCharacter === 'patrick' ? 'Patrick Wong' : 'JJ Atencio') + '!';
+                shopMessageTimer = 90;
+                return;
+            } else {
+                if (coins < 50) {
+                    shopMessage = 'Not enough coins!';
+                    shopMessageTimer = 90;
+                    return;
+                }
+                coins -= 50;
+                patrickUnlocked = true;
+                activeCharacter = 'patrick';
+                saveCharacterState();
+                saveProgress();
+                shopMessage = 'Patrick Wong unlocked!';
+                shopMessageTimer = 90;
+                return;
+            }
+        }
 
         const tier = equipment[ped.type];
         const prices = SHOP_PRICES[ped.type];
@@ -2548,10 +2910,13 @@ function drawShop() {
         ctx.fill();
     }
 
+    ctx.save();
+    ctx.translate(-cameraX, 0);
+
     // --- Windows ---
     const windowPositions = [120, 520, 920];
     windowPositions.forEach(wx => {
-        const winX = wx - cameraX * 0.05;
+        const winX = wx;
         const winY = 45;
         const winW = 70;
         const winH = 80;
@@ -2645,7 +3010,7 @@ function drawShop() {
 
     // Ceiling light fixtures
     for (let lx = 100; lx < W + 200; lx += 250) {
-        const lightX = lx - cameraX * 0.1;
+        const lightX = lx;
         // Light cone
         const lightGrad = ctx.createRadialGradient(lightX, 10, 5, lightX, 50, 100);
         lightGrad.addColorStop(0, 'rgba(255, 230, 160, 0.12)');
@@ -2701,18 +3066,15 @@ function drawShop() {
 
     // Welcome mat near entrance
     ctx.fillStyle = '#6a3a2a';
-    ctx.fillRect(50 - cameraX, baseY + 2, 80, H - baseY - 4);
+    ctx.fillRect(50, baseY + 2, 80, H - baseY - 4);
     ctx.strokeStyle = '#c9a84c';
     ctx.lineWidth = 1;
-    ctx.strokeRect(53 - cameraX, baseY + 4, 74, H - baseY - 8);
+    ctx.strokeRect(53, baseY + 4, 74, H - baseY - 8);
     ctx.fillStyle = '#c9a84c';
     ctx.font = '8px Georgia';
     ctx.textAlign = 'center';
-    ctx.fillText('WELCOME', 90 - cameraX, baseY + (H - baseY) / 2 + 3);
+    ctx.fillText('WELCOME', 90, baseY + (H - baseY) / 2 + 3);
     ctx.textAlign = 'left';
-
-    ctx.save();
-    ctx.translate(-cameraX, 0);
 
     // --- Shopkeeper ---
     drawShopkeeper(950, baseY);
@@ -2756,11 +3118,11 @@ function drawShop() {
     }
 
     // Pedestals with items
-    shopPedestals.forEach(ped => {
+    getShopPedestals().forEach(ped => {
         const tier = equipment[ped.type];
         const prices = SHOP_PRICES[ped.type];
-        const nextTier = tier + 1;
-        const isMaxed = nextTier >= prices.length;
+        const nextTier = ped.type !== 'character' ? tier + 1 : 0;
+        const isMaxed = ped.type !== 'character' && nextTier >= prices.length;
 
         // Glass display case
         ctx.fillStyle = '#5a4a38';
@@ -2820,6 +3182,33 @@ function drawShop() {
             ctx.fillRect(ped.x - 8, bobY - 10, 16, 20);
             ctx.fillStyle = SHIRT_TIERS[showTier].colors[1];
             ctx.fillRect(ped.x - 6, bobY - 8, 12, 4);
+        } else if (ped.type === 'character') {
+            // Draw a small Patrick Wong figure
+            const figY = bobY - 5;
+            // Head
+            ctx.fillStyle = '#e8c89e';
+            ctx.beginPath();
+            ctx.ellipse(ped.x, figY - 8, 6, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Hair (black, straight)
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.ellipse(ped.x, figY - 12, 6, 4, 0, Math.PI, Math.PI * 2);
+            ctx.fill();
+            // Glasses
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(ped.x - 5, figY - 10, 4, 3);
+            ctx.strokeRect(ped.x + 1, figY - 10, 4, 3);
+            // Body
+            ctx.fillStyle = '#2a2a5a';
+            ctx.fillRect(ped.x - 5, figY - 1, 10, 14);
+            // Psychic glow
+            const glowPulse = 0.3 + 0.2 * Math.sin(gameTime * 0.06);
+            ctx.fillStyle = `rgba(138, 43, 226, ${glowPulse})`;
+            ctx.beginPath();
+            ctx.arc(ped.x, figY, 16, 0, Math.PI * 2);
+            ctx.fill();
         }
 
         // Label above pedestal
@@ -2829,7 +3218,19 @@ function drawShop() {
         ctx.fillText(ped.label, ped.x, baseY - 50);
 
         // Price or MAXED below pedestal
-        if (isMaxed) {
+        if (ped.type === 'character') {
+            if (patrickUnlocked) {
+                ctx.fillStyle = '#b388ff';
+                ctx.fillText(activeCharacter === 'patrick' ? 'ACTIVE' : 'SWAP', ped.x, baseY + 20);
+            } else {
+                ctx.fillStyle = coins >= 50 ? '#fff' : '#e57373';
+                ctx.fillText('50 coins', ped.x, baseY + 20);
+            }
+            // Show equipped character name
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.font = '10px Georgia';
+            ctx.fillText('Playing: ' + (activeCharacter === 'patrick' ? 'Patrick' : 'JJ'), ped.x, baseY + 34);
+        } else if (isMaxed) {
             ctx.fillStyle = '#4ade80';
             ctx.fillText('MAXED', ped.x, baseY + 20);
         } else {
@@ -2837,14 +3238,16 @@ function drawShop() {
             ctx.fillText(prices[nextTier] + ' coins', ped.x, baseY + 20);
         }
 
-        // Current tier name
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.font = '10px Georgia';
-        const tierNames = {
-            club: CLUB_TIERS, shaft: SHAFT_TIERS,
-            boots: BOOT_TIERS, shirt: SHIRT_TIERS
-        };
-        ctx.fillText('Equipped: ' + tierNames[ped.type][tier].name, ped.x, baseY + 34);
+        // Current tier name (for equipment only)
+        if (ped.type !== 'character') {
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.font = '10px Georgia';
+            const tierNames = {
+                club: CLUB_TIERS, shaft: SHAFT_TIERS,
+                boots: BOOT_TIERS, shirt: SHIRT_TIERS
+            };
+            ctx.fillText('Equipped: ' + tierNames[ped.type][tier].name, ped.x, baseY + 34);
+        }
         ctx.textAlign = 'left';
     });
 
@@ -2910,7 +3313,7 @@ function drawShop() {
 
     // Feedback message
     if (shopMessageTimer > 0) {
-        ctx.fillStyle = shopMessage === 'Purchased!' ? '#4ade80' : '#e57373';
+        ctx.fillStyle = (shopMessage === 'Purchased!' || shopMessage.includes('unlocked') || shopMessage.includes('Switched')) ? '#4ade80' : '#e57373';
         ctx.font = 'bold 18px Georgia';
         ctx.textAlign = 'center';
         ctx.globalAlpha = Math.min(1, shopMessageTimer / 30);
@@ -2969,6 +3372,9 @@ document.getElementById('nextBtn').addEventListener('click', () => {
 });
 
 function showEnd() {
+    hasCompletedGame = true;
+    localStorage.setItem('jhi-golf-completed', 'true');
+
     const total = scores.reduce((a, b) => a + b, 0);
     const totalPar = levels.reduce((a, l) => a + l.par, 0);
     const diff = total - totalPar;
