@@ -136,12 +136,13 @@ resize();
 window.addEventListener('resize', resize);
 
 // ==================== CONSTANTS ====================
-const GRAVITY = 0.5;
+const GRAVITY = 0.45;
 const PLAYER_SPEED = 3.5;
 const JUMP_FORCE = -10;
-const BALL_FRICTION = 0.992;
-const BALL_GROUND_FRICTION = 0.97;
-const BALL_BOUNCE = 0.55;
+const BALL_AIR_DRAG = 0.998;
+const BALL_GROUND_FRICTION = 0.985;
+const BALL_BOUNCE = 0.5;
+const BALL_SPIN_FACTOR = 0.02; // backspin/topspin
 const MAX_HIT_POWER = 16;
 const HIT_RANGE = 40;
 
@@ -460,13 +461,24 @@ function update() {
 
     // --- Ball physics ---
     if (ball.active) {
-        ball.vy += GRAVITY * 0.8;
+        // Gravity — full strength always
+        ball.vy += GRAVITY;
+
+        // Air drag (less friction in air, more realistic arc)
+        if (!ball.onGround) {
+            ball.vx *= BALL_AIR_DRAG;
+            ball.vy *= BALL_AIR_DRAG;
+            // Wind resistance increases with speed (quadratic drag)
+            const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            if (speed > 2) {
+                const drag = 0.0005 * speed;
+                ball.vx -= ball.vx * drag;
+                ball.vy -= ball.vy * drag;
+            }
+        }
+
         ball.x += ball.vx;
         ball.y += ball.vy;
-
-        // Air friction
-        ball.vx *= BALL_FRICTION;
-        ball.vy *= BALL_FRICTION;
 
         // Ground collision
         const bGroundY = getGroundY(ball.x);
@@ -476,30 +488,65 @@ function update() {
         if (bEffGround !== null && ball.y + ball.r >= bEffGround) {
             ball.y = bEffGround - ball.r;
 
-            if (Math.abs(ball.vy) > 1.5) {
-                ball.vy = -ball.vy * BALL_BOUNCE;
+            // Calculate slope normal for angled bounce
+            const slopeCheck = 4;
+            const gyL = getGroundY(ball.x - slopeCheck);
+            const gyR = getGroundY(ball.x + slopeCheck);
+
+            if (gyL !== null && gyR !== null) {
+                // Surface tangent and normal
+                const tx = slopeCheck * 2;
+                const ty = gyR - gyL;
+                const tLen = Math.sqrt(tx * tx + ty * ty);
+                const nx = -ty / tLen; // normal x (perpendicular)
+                const ny = tx / tLen;  // normal y
+
+                // Reflect velocity off surface normal
+                const dot = ball.vx * nx + ball.vy * ny;
+
+                if (dot < 0) { // moving into ground
+                    if (Math.abs(dot) > 2) {
+                        // Bounce — energy loss proportional to impact
+                        const bounceFactor = BALL_BOUNCE * Math.max(0.3, 1 - Math.abs(dot) * 0.02);
+                        ball.vx -= (1 + bounceFactor) * dot * nx;
+                        ball.vy -= (1 + bounceFactor) * dot * ny;
+                        // Spin: horizontal velocity transfers slightly on bounce
+                        ball.vx *= 0.95;
+                    } else {
+                        // Settle onto surface
+                        ball.vx -= dot * nx;
+                        ball.vy -= dot * ny;
+                        ball.onGround = true;
+                    }
+                }
+
+                // Slope gravity — ball rolls downhill
+                const slopeAngle = Math.atan2(ty, tx);
+                ball.vx += Math.sin(slopeAngle) * 0.15;
             } else {
-                ball.vy = 0;
-                ball.onGround = true;
-            }
-
-            // Ground friction
-            ball.vx *= BALL_GROUND_FRICTION;
-
-            // Sand trap — extra friction
-            for (const s of (level.sand || [])) {
-                if (ball.x >= s.x && ball.x <= s.x + s.w) {
-                    ball.vx *= 0.92;
+                // Flat ground fallback
+                if (Math.abs(ball.vy) > 2) {
+                    ball.vy = -ball.vy * BALL_BOUNCE;
+                } else {
+                    ball.vy = 0;
+                    ball.onGround = true;
                 }
             }
 
-            // Slope influence
-            const slopeCheck = 3;
-            const gyLeft = getGroundY(ball.x - slopeCheck);
-            const gyRight = getGroundY(ball.x + slopeCheck);
-            if (gyLeft !== null && gyRight !== null) {
-                const slope = (gyRight - gyLeft) / (slopeCheck * 2);
-                ball.vx += slope * 0.3;
+            // Rolling friction (depends on speed)
+            const groundSpeed = Math.abs(ball.vx);
+            if (groundSpeed > 0.1) {
+                // Dynamic friction — less at high speed, more at low
+                const frictionCoeff = groundSpeed > 3 ? BALL_GROUND_FRICTION : 0.975;
+                ball.vx *= frictionCoeff;
+            }
+
+            // Sand trap — much heavier friction
+            for (const s of (level.sand || [])) {
+                if (ball.x >= s.x && ball.x <= s.x + s.w) {
+                    ball.vx *= 0.88;
+                    if (Math.abs(ball.vx) < 0.5) ball.vx *= 0.8; // sticks in sand
+                }
             }
         } else if (bEffGround === null) {
             ball.onGround = false;
@@ -533,9 +580,11 @@ function update() {
             document.getElementById('strokeNum').textContent = strokes;
         }
 
-        // Stop ball
-        if (ball.onGround && Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1) {
-            ball.vx = 0; ball.vy = 0;
+        // Stop ball when it's barely moving on ground
+        if (ball.onGround && Math.abs(ball.vx) < 0.15 && Math.abs(ball.vy) < 0.15) {
+            ball.vx *= 0.8; // gentle deceleration to full stop
+            ball.vy = 0;
+            if (Math.abs(ball.vx) < 0.02) ball.vx = 0;
         }
 
         // Check hole
@@ -774,70 +823,117 @@ function drawPlayer() {
     ctx.ellipse(0, player.h, 10, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Legs
-    ctx.strokeStyle = '#2c2c2c';
-    ctx.lineWidth = 3;
+    // Legs — khaki pants
+    ctx.strokeStyle = '#a08860';
+    ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
-    // Left leg
     ctx.beginPath();
-    ctx.moveTo(-3, 20);
+    ctx.moveTo(-3, 21);
     ctx.lineTo(-3 - legSwing, player.h);
     ctx.stroke();
-    // Right leg
     ctx.beginPath();
-    ctx.moveTo(3, 20);
+    ctx.moveTo(3, 21);
     ctx.lineTo(3 + legSwing, player.h);
     ctx.stroke();
+    // Shoes
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-5 - legSwing, player.h - 2, 5, 3);
+    ctx.fillRect(1 + legSwing, player.h - 2, 5, 3);
 
-    // Body (polo shirt)
-    ctx.fillStyle = '#1a472a';
-    ctx.fillRect(-6, 10, 12, 13);
+    // Body — blue patterned button-up shirt
+    ctx.fillStyle = '#3a6fa8';
+    ctx.beginPath();
+    ctx.moveTo(-7, 10);
+    ctx.lineTo(7, 10);
+    ctx.lineTo(6, 23);
+    ctx.lineTo(-6, 23);
+    ctx.closePath();
+    ctx.fill();
+    // Shirt pattern (small dots like his photo)
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    [[-3,13],[1,13],[-1,16],[3,16],[-3,19],[1,19]].forEach(([dx,dy]) => {
+        ctx.beginPath();
+        ctx.arc(dx, dy, 0.8, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    // Collar
+    ctx.strokeStyle = '#2d5a8c';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-4, 10);
+    ctx.lineTo(0, 12);
+    ctx.lineTo(4, 10);
+    ctx.stroke();
 
-    // Arms
-    ctx.strokeStyle = '#d4a574';
-    ctx.lineWidth = 2.5;
+    // Arms — skin tone
+    ctx.strokeStyle = '#c4956a';
+    ctx.lineWidth = 2.8;
+    ctx.lineCap = 'round';
     // Left arm
     ctx.beginPath();
-    ctx.moveTo(-6, 13);
-    ctx.lineTo(-10, 22);
+    ctx.moveTo(-7, 12);
+    ctx.lineTo(-11, 22);
     ctx.stroke();
     // Right arm — holding club if near ball
     const nearBall = Math.abs(player.x - ball.x) < HIT_RANGE && ball.onGround;
     ctx.beginPath();
-    ctx.moveTo(6, 13);
+    ctx.moveTo(7, 12);
     if (nearBall) {
-        ctx.lineTo(12, 20);
+        ctx.lineTo(12, 18);
         ctx.stroke();
         // Golf club
-        ctx.strokeStyle = '#aaa';
+        ctx.strokeStyle = '#bbb';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(12, 20);
+        ctx.moveTo(12, 18);
         ctx.lineTo(14, 30);
         ctx.stroke();
-        ctx.fillStyle = '#888';
+        // Club head
+        ctx.fillStyle = '#999';
         ctx.fillRect(12, 29, 6, 3);
     } else {
-        ctx.lineTo(10, 22);
+        ctx.lineTo(11, 22);
         ctx.stroke();
     }
 
-    // Head
-    ctx.fillStyle = '#d4a574';
+    // Head — slightly wider, JJ's rounder face
+    ctx.fillStyle = '#c4956a';
     ctx.beginPath();
-    ctx.arc(0, 6, 7, 0, Math.PI * 2);
+    ctx.ellipse(0, 5, 7.5, 8, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Cap
-    ctx.fillStyle = '#c9a84c';
+    // Hair — short dark hair, slightly receding
+    ctx.fillStyle = '#2a2a2a';
     ctx.beginPath();
-    ctx.ellipse(0, 2, 8, 4, 0, Math.PI, Math.PI * 2);
+    ctx.ellipse(0, 0, 7, 4, 0, Math.PI, Math.PI * 2);
     ctx.fill();
-    ctx.fillRect(-2, -2, 10, 3);
+    // Side hair
+    ctx.fillRect(-7, 0, 2, 4);
+    ctx.fillRect(5, 0, 2, 4);
 
-    // Eyes
-    ctx.fillStyle = '#222';
-    ctx.fillRect(2, 5, 2, 2);
+    // Glasses — rectangular frames
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1.2;
+    // Left lens
+    ctx.strokeRect(-6, 3, 5, 4);
+    // Right lens
+    ctx.strokeRect(1, 3, 5, 4);
+    // Bridge
+    ctx.beginPath();
+    ctx.moveTo(-1, 4.5);
+    ctx.lineTo(1, 4.5);
+    ctx.stroke();
+    // Lens tint
+    ctx.fillStyle = 'rgba(150, 200, 255, 0.15)';
+    ctx.fillRect(-6, 3, 5, 4);
+    ctx.fillRect(1, 3, 5, 4);
+
+    // Smile
+    ctx.strokeStyle = '#8a5a3a';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(0, 8, 3, 0.1, Math.PI - 0.1);
+    ctx.stroke();
 
     ctx.restore();
 }
