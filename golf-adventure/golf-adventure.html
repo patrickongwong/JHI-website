@@ -1641,41 +1641,55 @@ function draw() {
     drawEnemies();
 
     // --- Hole/flag ---
-    // Flag shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    // Green patch around hole (so it blends into terrain)
+    ctx.fillStyle = theme.grassMid;
     ctx.beginPath();
-    ctx.ellipse(hole.x + 8, hole.y, 14, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x, hole.y + 3, hole.r + 6, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = theme.grassTop;
+    ctx.beginPath();
+    ctx.ellipse(hole.x, hole.y + 2, hole.r + 4, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Flag shadow on ground
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath();
+    ctx.ellipse(hole.x + 8, hole.y + 3, 14, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Flag pole
     ctx.strokeStyle = '#ddd';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(hole.x, hole.y);
-    ctx.lineTo(hole.x, hole.y - 60);
+    ctx.moveTo(hole.x, hole.y + 3);
+    ctx.lineTo(hole.x, hole.y - 57);
     ctx.stroke();
 
     // Flag with wave
     const flagWave = Math.sin(gameTime * 0.06) * 3;
     ctx.fillStyle = '#c9a84c';
     ctx.beginPath();
-    ctx.moveTo(hole.x, hole.y - 60);
-    ctx.quadraticCurveTo(hole.x + 14 + flagWave, hole.y - 53, hole.x + 25, hole.y - 50);
-    ctx.quadraticCurveTo(hole.x + 14 - flagWave, hole.y - 47, hole.x, hole.y - 40);
+    ctx.moveTo(hole.x, hole.y - 57);
+    ctx.quadraticCurveTo(hole.x + 14 + flagWave, hole.y - 50, hole.x + 25, hole.y - 47);
+    ctx.quadraticCurveTo(hole.x + 14 - flagWave, hole.y - 44, hole.x, hole.y - 37);
     ctx.fill();
 
-
-    // Hole (cup)
+    // Hole (cup) — sunk into the ground
     ctx.fillStyle = '#0a0a0a';
     ctx.beginPath();
-    ctx.ellipse(hole.x, hole.y, hole.r, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x, hole.y + 3, hole.r, 5, 0, 0, Math.PI * 2);
     ctx.fill();
     // Hole rim
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.ellipse(hole.x, hole.y, hole.r, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x, hole.y + 3, hole.r, 5, 0, 0, Math.PI * 2);
     ctx.stroke();
+    // Inner shadow for depth
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(hole.x, hole.y + 4, hole.r - 3, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
 
     // --- Ball ---
     if (ball.active && !ball.sunk) {
