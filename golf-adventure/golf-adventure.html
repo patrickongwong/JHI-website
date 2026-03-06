@@ -1759,6 +1759,31 @@ function draw() {
 
     // Storm effects (rain, lightning, wind indicator)
     drawStormEffects();
+
+    // HUD - Hearts
+    for (let i = 0; i < player.maxHp; i++) {
+        const hx = 15 + i * 22;
+        ctx.fillStyle = i < player.hp ? '#e53e3e' : 'rgba(255,255,255,0.2)';
+        ctx.beginPath();
+        ctx.moveTo(hx, 20);
+        ctx.bezierCurveTo(hx, 17, hx - 5, 12, hx - 8, 15);
+        ctx.bezierCurveTo(hx - 13, 20, hx, 28, hx, 30);
+        ctx.bezierCurveTo(hx, 28, hx + 13, 20, hx + 8, 15);
+        ctx.bezierCurveTo(hx + 5, 12, hx, 17, hx, 20);
+        ctx.fill();
+    }
+
+    // HUD - Coins
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = 'bold 14px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText(coins + ' coins', W - 15, 25);
+    ctx.textAlign = 'left';
+
+    // HUD - Club tier
+    ctx.fillStyle = CLUB_TIERS[equipment.club].color;
+    ctx.font = '11px Georgia';
+    ctx.fillText(CLUB_TIERS[equipment.club].name + ' Club', 15, H - 12);
 }
 
 function drawEnemies() {
@@ -2191,6 +2216,261 @@ function drawPlayer() {
     ctx.restore();
 }
 
+// ==================== PRO SHOP ====================
+const shopPedestals = [
+    { type: 'club',  label: '+ Power',   x: 200 },
+    { type: 'shaft', label: '+ Control', x: 400 },
+    { type: 'boots', label: '+ Jump',    x: 600 },
+    { type: 'shirt', label: '+ Health',  x: 800 }
+];
+
+let shopMessage = '';
+let shopMessageTimer = 0;
+
+function initShop() {
+    const baseY = canvas.height - 80 * S;
+    player.x = 100;
+    player.y = baseY - player.h;
+    player.vx = 0; player.vy = 0;
+    player.onGround = true;
+    player.facing = 1;
+    player.walking = false;
+    player.walkFrame = 0;
+    cameraX = 0;
+    shopMessage = '';
+    shopMessageTimer = 0;
+}
+
+function updateShop() {
+    gameTime++;
+    player.walking = false;
+    if (keys['a'] || keys['arrowleft']) {
+        player.vx = -PLAYER_SPEED;
+        player.facing = -1;
+        player.walking = true;
+    } else if (keys['d'] || keys['arrowright']) {
+        player.vx = PLAYER_SPEED;
+        player.facing = 1;
+        player.walking = true;
+    } else {
+        player.vx = 0;
+    }
+    player.x += player.vx;
+    player.x = Math.max(30, Math.min(player.x, 1050));
+    if (player.walking) player.walkFrame += 0.15;
+    else player.walkFrame = 0;
+
+    if (shopMessageTimer > 0) shopMessageTimer--;
+
+    // Buy with up/W key
+    if (keys['w'] || keys['arrowup']) {
+        if (!player.buyHeld) {
+            player.buyHeld = true;
+            tryBuy();
+        }
+    } else {
+        player.buyHeld = false;
+    }
+
+    // Continue at right edge
+    if (player.x >= 1020) {
+        gameMode = 'play';
+        currentHole++;
+        initHole();
+    }
+
+    // Camera
+    const targetCX = Math.max(0, player.x - canvas.width / 2);
+    cameraX += (targetCX - cameraX) * 0.1;
+}
+
+function tryBuy() {
+    for (const ped of shopPedestals) {
+        if (Math.abs(player.x - ped.x) > 50) continue;
+
+        const tier = equipment[ped.type];
+        const prices = SHOP_PRICES[ped.type];
+        const nextTier = tier + 1;
+
+        if (nextTier >= prices.length) {
+            shopMessage = 'MAXED!';
+            shopMessageTimer = 90;
+            return;
+        }
+
+        const cost = prices[nextTier];
+        if (coins < cost) {
+            shopMessage = 'Not enough coins!';
+            shopMessageTimer = 90;
+            return;
+        }
+
+        coins -= cost;
+        equipment[ped.type] = nextTier;
+        saveProgress();
+        shopMessage = 'Purchased!';
+        shopMessageTimer = 90;
+        return;
+    }
+}
+
+function drawShop() {
+    const W = canvas.width, H = canvas.height;
+    const baseY = H - 80 * S;
+
+    // Background - indoor shop
+    ctx.fillStyle = '#2a1a0a';
+    ctx.fillRect(0, 0, W, H);
+
+    // Back wall
+    const wallGrad = ctx.createLinearGradient(0, 0, 0, baseY);
+    wallGrad.addColorStop(0, '#3a2818');
+    wallGrad.addColorStop(1, '#2a1a0a');
+    ctx.fillStyle = wallGrad;
+    ctx.fillRect(0, 0, W, baseY);
+
+    // Wall shelves
+    ctx.fillStyle = '#4a3020';
+    for (let sy = 60; sy < baseY - 40; sy += 80) {
+        ctx.fillRect(0, sy, W + 200, 6);
+    }
+
+    // Wooden floor
+    ctx.fillStyle = '#5a3a1a';
+    ctx.fillRect(0, baseY, W, H - baseY);
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1;
+    for (let fx = -cameraX % 60; fx < W; fx += 60) {
+        ctx.beginPath();
+        ctx.moveTo(fx, baseY);
+        ctx.lineTo(fx, H);
+        ctx.stroke();
+    }
+
+    ctx.save();
+    ctx.translate(-cameraX, 0);
+
+    // Pedestals with items
+    shopPedestals.forEach(ped => {
+        const tier = equipment[ped.type];
+        const prices = SHOP_PRICES[ped.type];
+        const nextTier = tier + 1;
+        const isMaxed = nextTier >= prices.length;
+
+        // Pedestal base
+        ctx.fillStyle = '#6a5a4a';
+        ctx.fillRect(ped.x - 20, baseY - 40, 40, 40);
+        ctx.fillStyle = '#7a6a5a';
+        ctx.fillRect(ped.x - 24, baseY - 44, 48, 6);
+
+        // Floating item with bob
+        const bobY = baseY - 70 + Math.sin(gameTime * 0.04 + ped.x * 0.01) * 4;
+
+        if (ped.type === 'club') {
+            const showTier = Math.min(nextTier, CLUB_TIERS.length - 1);
+            ctx.fillStyle = CLUB_TIERS[showTier].color;
+            ctx.fillRect(ped.x - 2, bobY - 15, 4, 30);
+            ctx.fillRect(ped.x - 6, bobY + 12, 12, 5);
+        } else if (ped.type === 'shaft') {
+            ctx.fillStyle = '#ff69b4';
+            ctx.fillRect(ped.x - 2, bobY - 15, 4, 30);
+        } else if (ped.type === 'boots') {
+            const showTier = Math.min(nextTier, BOOT_TIERS.length - 1);
+            ctx.fillStyle = BOOT_TIERS[showTier].color;
+            ctx.beginPath();
+            ctx.roundRect(ped.x - 8, bobY, 16, 8, 3);
+            ctx.fill();
+            if (BOOT_TIERS[showTier].wings) {
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.moveTo(ped.x - 8, bobY);
+                ctx.lineTo(ped.x - 16, bobY - 8);
+                ctx.lineTo(ped.x - 4, bobY - 3);
+                ctx.closePath();
+                ctx.fill();
+            }
+        } else if (ped.type === 'shirt') {
+            const showTier = Math.min(nextTier, SHIRT_TIERS.length - 1);
+            ctx.fillStyle = SHIRT_TIERS[showTier].colors[0];
+            ctx.fillRect(ped.x - 8, bobY - 10, 16, 20);
+            ctx.fillStyle = SHIRT_TIERS[showTier].colors[1];
+            ctx.fillRect(ped.x - 6, bobY - 8, 12, 4);
+        }
+
+        // Label above pedestal
+        ctx.fillStyle = '#c9a84c';
+        ctx.font = 'bold 12px Georgia';
+        ctx.textAlign = 'center';
+        ctx.fillText(ped.label, ped.x, baseY - 50);
+
+        // Price or MAXED below pedestal
+        if (isMaxed) {
+            ctx.fillStyle = '#4ade80';
+            ctx.fillText('MAXED', ped.x, baseY + 20);
+        } else {
+            ctx.fillStyle = coins >= prices[nextTier] ? '#fff' : '#e57373';
+            ctx.fillText(prices[nextTier] + ' coins', ped.x, baseY + 20);
+        }
+
+        // Current tier name
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '10px Georgia';
+        const tierNames = {
+            club: CLUB_TIERS, shaft: SHAFT_TIERS,
+            boots: BOOT_TIERS, shirt: SHIRT_TIERS
+        };
+        ctx.fillText('Equipped: ' + tierNames[ped.type][tier].name, ped.x, baseY + 34);
+        ctx.textAlign = 'left';
+    });
+
+    // Continue sign at right
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = 'bold 16px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Continue \u2192', 1030, baseY - 20);
+    ctx.strokeStyle = '#c9a84c';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(990, baseY - 35, 80, 22);
+    ctx.textAlign = 'left';
+
+    // Draw player in shop
+    drawPlayer();
+
+    ctx.restore();
+
+    // Coin display (top right, fixed)
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = 'bold 16px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText(coins + ' coins', W - 20, 30);
+    ctx.textAlign = 'left';
+
+    // Shop title
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = 'bold 20px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('PRO SHOP', W / 2, 30);
+    ctx.textAlign = 'left';
+
+    // Instruction
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '13px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Walk to an item and press UP to buy', W / 2, H - 15);
+    ctx.textAlign = 'left';
+
+    // Feedback message
+    if (shopMessageTimer > 0) {
+        ctx.fillStyle = shopMessage === 'Purchased!' ? '#4ade80' : '#e57373';
+        ctx.font = 'bold 18px Georgia';
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = Math.min(1, shopMessageTimer / 30);
+        ctx.fillText(shopMessage, W / 2, H / 2 - 60);
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'left';
+    }
+}
+
 // ==================== HOLE COMPLETE ====================
 function onHoleSunk() {
     const par = levels[currentHole].par;
@@ -2233,8 +2513,9 @@ document.getElementById('nextBtn').addEventListener('click', () => {
     if (currentHole >= levels.length - 1) {
         showEnd();
     } else {
-        currentHole++;
-        initHole();
+        // Enter shop before next hole
+        gameMode = 'shop';
+        initShop();
     }
 });
 
@@ -2359,8 +2640,13 @@ document.getElementById('replayBtn').addEventListener('click', () => {
 
 // ==================== GAME LOOP ====================
 function loop() {
-    update();
-    draw();
+    if (gameMode === 'shop') {
+        updateShop();
+        drawShop();
+    } else {
+        update();
+        draw();
+    }
     requestAnimationFrame(loop);
 }
 
