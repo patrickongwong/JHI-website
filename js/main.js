@@ -60,6 +60,44 @@ function getBallPosition(t) {
         const peakFt = 0.12;  // peak of the arc
         const peakY = 8;      // peak of arc — high in viewport (vh)
 
+        // Physics-based bounce system
+        // Real ball: rises fast (initial velocity), decelerates (gravity),
+        // falls accelerating. Each bounce loses energy (restitution ~0.5).
+        // y(p) = ground - height * (1 - (2p-1)^2) is symmetric;
+        // Instead use: y(p) = ground - v0*p + 0.5*g*p^2 (projectile)
+        //
+        // Bounce phases with diminishing energy:
+        //   Main flight:   0    → 0.80  (big arc from tee)
+        //   Bounce 1:      0.80 → 0.89  (height ~14vh, restitution)
+        //   Bounce 2:      0.89 → 0.94  (height ~5vh)
+        //   Bounce 3:      0.94 → 0.97  (height ~1.5vh, barely visible)
+        //   Settle/sink:   0.97 → 1.0
+
+        // Projectile: given duration d and peak height h,
+        // gravity g = 2h / (d/2)^2, initial velocity v0 = g * (d/2)
+        // y_offset(p) = v0*p - 0.5*g*p^2  (positive = upward)
+        // This naturally gives fast rise, slow peak, accelerating fall.
+
+        function projectileY(p, h, d) {
+            // p: 0→d is time, h is peak height
+            const halfD = d / 2;
+            const g = 2 * h / (halfD * halfD);
+            const v0 = g * halfD;
+            return v0 * p - 0.5 * g * p * p;
+        }
+
+        const b1Start = 0.80;  // first bounce start
+        const b1End   = 0.89;  // first bounce end
+        const b1H     = 14;    // first bounce height (vh)
+
+        const b2Start = 0.89;
+        const b2End   = 0.94;
+        const b2H     = 5;
+
+        const b3Start = 0.94;
+        const b3End   = 0.97;
+        const b3H     = 1.5;
+
         if (ft <= peakFt) {
             // Launch: ball goes UP and left
             const p = ft / peakFt;
@@ -68,35 +106,67 @@ function getBallPosition(t) {
             rot = ft * 2000;
             scale = 1.0;
 
-        } else if (ft <= 0.82) {
-            // Descent: ball comes DOWN and continues left — gravity arc
-            const p = (ft - peakFt) / (0.82 - peakFt);
+        } else if (ft <= b1Start) {
+            // Main flight descent — gravity arc
+            const p = (ft - peakFt) / (b1Start - peakFt);
+            // Quadratic ease-in (accelerating fall)
             y = peakY + (groundY - peakY) * (p * p);
             rot = 240 + (ft - peakFt) * 2000;
             scale = 1.0;
 
-        } else if (ft <= 0.90) {
-            // First bounce
-            const p = (ft - 0.82) / 0.08;
-            const bounceHeight = 15;
-            y = groundY - bounceHeight * 4 * p * (1 - p);
-            rot = 1680 + p * 360;
+        } else if (ft <= b1End) {
+            // First bounce — physics projectile
+            const dur = b1End - b1Start;
+            const p = ft - b1Start;
+            const offset = projectileY(p, b1H, dur);
+            y = groundY - offset;
+            // Spin decays: fast at start, slowing
+            rot = 1640 + ((ft - b1Start) / dur) * 280;
             scale = 1.0;
 
-        } else if (ft <= 0.95) {
+        } else if (ft <= b2End) {
             // Second bounce
-            const p = (ft - 0.90) / 0.05;
-            const bounceHeight = 6;
-            y = groundY - bounceHeight * 4 * p * (1 - p);
-            rot = 2040 + p * 180;
+            const dur = b2End - b2Start;
+            const p = ft - b2Start;
+            const offset = projectileY(p, b2H, dur);
+            y = groundY - offset;
+            rot = 1920 + ((ft - b2Start) / dur) * 120;
+            scale = 1.0;
+
+        } else if (ft <= b3End) {
+            // Third bounce — tiny
+            const dur = b3End - b3Start;
+            const p = ft - b3Start;
+            const offset = projectileY(p, b3H, dur);
+            y = groundY - offset;
+            rot = 2040 + ((ft - b3Start) / dur) * 40;
             scale = 1.0;
 
         } else {
-            // Settle and sink into hole
-            const p = (ft - 0.95) / 0.05;
-            y = groundY;
-            rot = 2220 + p * 40;
-            scale = 1.0 - p * 0.7;
+            // Settle, roll to hole, tip in, and drop
+            const p = (ft - b3End) / (1 - b3End); // 0 → 1
+
+            if (p < 0.4) {
+                // Rolling slowly toward the hole center
+                const rp = p / 0.4;
+                y = groundY;
+                rot = 2080 + rp * 60; // slow roll
+                scale = 1.0;
+            } else if (p < 0.6) {
+                // Teetering on the edge — slight wobble
+                const rp = (p - 0.4) / 0.2;
+                const wobble = Math.sin(rp * Math.PI * 3) * (1 - rp) * 1.5;
+                y = groundY + wobble;
+                rot = 2140 + rp * 10;
+                scale = 1.0;
+            } else {
+                // Drop into hole — ball sinks in place, shrinks quickly
+                const rp = (p - 0.6) / 0.4;
+                const dropEase = rp * rp;
+                y = groundY + dropEase * 1.5; // barely drops, just into the hole
+                rot = 2150 + rp * 30;
+                scale = Math.max(0, 1.0 - dropEase * 1.2); // shrinks to nothing
+            }
         }
     }
 
@@ -186,15 +256,22 @@ function updateBall() {
     // Map progress to flight-time for bounce detection
     const ft = progress > IMPACT_T ? (progress - IMPACT_T) / (1 - IMPACT_T) : 0;
 
-    // Squish the ball on bounce impacts
+    // Squish the ball on bounce impacts — proportional to bounce energy
     let transformExtra = '';
-    if (ft >= 0.82 && ft <= 0.825) {
-        const impactP = (ft - 0.82) / 0.005;
-        const squish = impactP < 1 ? Math.sin(impactP * Math.PI) * 0.2 : 0;
+    if (ft >= 0.80 && ft <= 0.806) {
+        // First impact — biggest squish
+        const impactP = (ft - 0.80) / 0.006;
+        const squish = impactP < 1 ? Math.sin(impactP * Math.PI) * 0.22 : 0;
         transformExtra = ` scaleX(${1 + squish}) scaleY(${1 - squish})`;
-    } else if (ft >= 0.90 && ft <= 0.905) {
-        const impactP = (ft - 0.90) / 0.005;
+    } else if (ft >= 0.89 && ft <= 0.895) {
+        // Second impact — medium squish
+        const impactP = (ft - 0.89) / 0.005;
         const squish = impactP < 1 ? Math.sin(impactP * Math.PI) * 0.12 : 0;
+        transformExtra = ` scaleX(${1 + squish}) scaleY(${1 - squish})`;
+    } else if (ft >= 0.94 && ft <= 0.944) {
+        // Third impact — tiny squish
+        const impactP = (ft - 0.94) / 0.004;
+        const squish = impactP < 1 ? Math.sin(impactP * Math.PI) * 0.05 : 0;
         transformExtra = ` scaleX(${1 + squish}) scaleY(${1 - squish})`;
     }
 
@@ -260,34 +337,36 @@ function updateBall() {
 
     // --- Trigger landing effects at key moments ---
 
-    // First bounce impact (ft ≈ 0.82)
-    if (ft >= 0.82 && !hasTriggeredBounce1) {
+    // First bounce impact (ft ≈ 0.80)
+    if (ft >= 0.80 && !hasTriggeredBounce1) {
         hasTriggeredBounce1 = true;
         triggerGrassSpray();
     }
 
-    // Second bounce impact (ft ≈ 0.90)
-    if (ft >= 0.90 && !hasTriggeredBounce2) {
+    // Second bounce impact (ft ≈ 0.89)
+    if (ft >= 0.89 && !hasTriggeredBounce2) {
         hasTriggeredBounce2 = true;
         triggerGrassSpray();
     }
 
-    // Sink into hole (ft ≈ 0.96)
-    if (ft >= 0.96 && !hasTriggeredSink) {
+    // Sink phase: ball drops in at ~0.6 of settle phase (ft ≈ 0.988)
+    const sinkFt = 0.97 + (1 - 0.97) * 0.6; // ~0.988
+    if (ft >= sinkFt && !hasTriggeredSink) {
         hasTriggeredSink = true;
         golfBall.classList.add('sinking');
         triggerRipple();
     }
 
-    // Fade ball out as it sinks
-    if (ft > 0.96) {
-        golfBall.style.opacity = Math.max(0, (1 - ft) / 0.04);
+    // Ball vanishes as it shrinks into hole
+    if (ft >= sinkFt) {
+        const dropP = (ft - sinkFt) / (1 - sinkFt);
+        golfBall.style.opacity = Math.max(0, 1 - dropP * 1.5);
     } else {
         golfBall.style.opacity = 1;
     }
 
     // Trail particles — only during flight (not during bounces/settling)
-    if (ft > 0 && ft < 0.82) {
+    if (ft > 0 && ft < 0.80) {
         const dx = pixelX - lastBallX;
         const dy = pixelY - lastBallY;
         const dist = Math.sqrt(dx * dx + dy * dy);
