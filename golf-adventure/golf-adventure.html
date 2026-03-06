@@ -87,6 +87,7 @@
             letter-spacing: 1px; text-transform: uppercase;
         }
         .overlay button:hover { background: #e0c872; }
+        .overlay button + button { margin-left: 10px; }
     </style>
 </head>
 <body>
@@ -123,6 +124,7 @@
 <div class="overlay hidden" id="endOverlay">
     <h2>Round Complete!</h2>
     <p id="endSummary"></p>
+    <button id="shareBtn">Share Score</button>
     <button id="replayBtn">Play Again</button>
 </div>
 
@@ -381,6 +383,7 @@ btnHit.addEventListener('click', e => {
 
 function handleMobileHit() {
     if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
+    if (!playerNearBall()) return;
 
     if (!mobileHitMode) {
         // Start aim - angle phase
@@ -434,8 +437,13 @@ canvas.addEventListener('touchstart', e => { e.preventDefault(); if (e.touches.l
 canvas.addEventListener('touchmove', e => { e.preventDefault(); moveAim(getCanvasPos(e)); }, { passive: false });
 canvas.addEventListener('touchend', e => { e.preventDefault(); endAim(aimEnd); }, { passive: false });
 
+function playerNearBall() {
+    return Math.abs(player.x - ball.x) < HIT_RANGE;
+}
+
 function startAim(pos) {
     if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
+    if (!playerNearBall()) return;
     const dx = pos.x - ball.x, dy = pos.y - ball.y;
     if (Math.sqrt(dx * dx + dy * dy) > 100) return;
     aiming = true;
@@ -719,9 +727,10 @@ function update() {
 
     // Status
     if (!ball.sunk) {
-        const dToBall = Math.abs(player.x - ball.x);
-        if (dToBall < HIT_RANGE && ball.onGround && ballIsSettled()) {
+        if (playerNearBall() && ball.onGround && ballIsSettled()) {
             document.getElementById('statusText').textContent = 'Click & drag the ball to hit!';
+        } else if (ballIsSettled() && !playerNearBall()) {
+            document.getElementById('statusText').textContent = 'Walk closer to the ball';
         } else if (!ballIsSettled()) {
             document.getElementById('statusText').textContent = '';
         }
@@ -988,6 +997,18 @@ function draw() {
 
     // --- Ball ---
     if (ball.active && !ball.sunk) {
+        // "Ready to hit" glow when player is near and ball is settled
+        if (playerNearBall() && ball.onGround && ballIsSettled()) {
+            const glowPulse = 0.25 + 0.15 * Math.sin(gameTime * 0.08);
+            const glowR = ball.r + 8 + Math.sin(gameTime * 0.06) * 2;
+            const glowGrad = ctx.createRadialGradient(ball.x, ball.y, ball.r, ball.x, ball.y, glowR);
+            glowGrad.addColorStop(0, `rgba(201, 168, 76, ${glowPulse})`);
+            glowGrad.addColorStop(1, 'rgba(201, 168, 76, 0)');
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, glowR, 0, Math.PI * 2);
+            ctx.fillStyle = glowGrad;
+            ctx.fill();
+        }
         // Shadow
         const bGround = getGroundY(ball.x);
         if (bGround !== null) {
@@ -1122,12 +1143,12 @@ function drawPlayer() {
 
     const legSwing = player.walking ? Math.sin(player.walkFrame * 4) * 7 : 0;
 
-    // Proportions: head ~16u, torso ~18u, legs ~22u = 56u total
+    // Proportions: head ~16u, torso ~22u, legs ~18u = 56u total
     const headTop = 0;
     const headCenter = 8 * u;
     const neckY = 16 * u;
     const torsoTop = neckY;
-    const torsoBot = 34 * u;
+    const torsoBot = 38 * u;
     const legTop = torsoBot;
     const footY = H;
 
@@ -1384,6 +1405,108 @@ function showEnd() {
         `Total: ${total} strokes (${diffStr} | Par ${totalPar})`;
     document.getElementById('endOverlay').classList.remove('hidden');
 }
+
+function generateScoreImage() {
+    const c = document.createElement('canvas');
+    c.width = 600; c.height = 400;
+    const cx = c.getContext('2d');
+
+    // Background
+    cx.fillStyle = '#0a1628';
+    cx.fillRect(0, 0, 600, 400);
+
+    // Gold border
+    cx.strokeStyle = '#c9a84c';
+    cx.lineWidth = 4;
+    cx.strokeRect(12, 12, 576, 376);
+
+    // Title
+    cx.fillStyle = '#c9a84c';
+    cx.font = 'bold 28px Georgia, serif';
+    cx.textAlign = 'center';
+    cx.fillText('JHI GOLF ADVENTURE', 300, 55);
+
+    // Subtitle
+    cx.fillStyle = 'rgba(255,255,255,0.6)';
+    cx.font = '16px Georgia, serif';
+    cx.fillText('Scorecard', 300, 80);
+
+    // Hole headers
+    const colW = 70, startX = 90, rowY = 120;
+    cx.font = 'bold 14px Georgia, serif';
+    cx.fillStyle = 'rgba(255,255,255,0.5)';
+    cx.textAlign = 'center';
+    for (let i = 0; i < levels.length; i++) {
+        cx.fillText('H' + (i + 1), startX + i * colW, rowY);
+    }
+    cx.fillText('TOT', startX + levels.length * colW, rowY);
+
+    // Par row
+    cx.fillStyle = 'rgba(255,255,255,0.4)';
+    cx.font = '13px Georgia, serif';
+    for (let i = 0; i < levels.length; i++) {
+        cx.fillText(levels[i].par, startX + i * colW, rowY + 22);
+    }
+    const totalPar = levels.reduce((a, l) => a + l.par, 0);
+    cx.fillText(totalPar, startX + levels.length * colW, rowY + 22);
+
+    // Score row
+    cx.font = 'bold 18px Georgia, serif';
+    const total = scores.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < scores.length; i++) {
+        const diff = scores[i] - levels[i].par;
+        cx.fillStyle = diff < 0 ? '#4CAF50' : diff === 0 ? '#c9a84c' : '#e57373';
+        cx.fillText(scores[i], startX + i * colW, rowY + 50);
+    }
+    cx.fillStyle = '#c9a84c';
+    cx.fillText(total, startX + levels.length * colW, rowY + 50);
+
+    // Divider
+    cx.strokeStyle = 'rgba(255,255,255,0.15)';
+    cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(40, 200);
+    cx.lineTo(560, 200);
+    cx.stroke();
+
+    // Total score large
+    const diff = total - totalPar;
+    const diffStr = diff === 0 ? 'Even' : diff > 0 ? '+' + diff : '' + diff;
+    cx.fillStyle = '#fff';
+    cx.font = 'bold 36px Georgia, serif';
+    cx.fillText(total + ' Strokes', 300, 255);
+
+    cx.fillStyle = diff <= 0 ? '#4CAF50' : '#e57373';
+    cx.font = 'bold 24px Georgia, serif';
+    cx.fillText(diffStr + ' (Par ' + totalPar + ')', 300, 290);
+
+    // Footer
+    cx.fillStyle = 'rgba(255,255,255,0.3)';
+    cx.font = '14px Georgia, serif';
+    cx.fillText('jacksholeinvestments.com', 300, 370);
+
+    return c;
+}
+
+async function shareScore() {
+    const c = generateScoreImage();
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    const file = new File([blob], 'jhi-golf-adventure-score.png', { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({ files: [file], title: 'JHI Golf Adventure Score' });
+            return;
+        } catch (e) { /* user cancelled or error, fall through to download */ }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'jhi-golf-adventure-score.png';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+document.getElementById('shareBtn').addEventListener('click', shareScore);
 
 document.getElementById('replayBtn').addEventListener('click', () => {
     document.getElementById('endOverlay').classList.add('hidden');

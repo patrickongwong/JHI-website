@@ -130,6 +130,10 @@
             background: #e0c872;
         }
 
+        .overlay button + button {
+            margin-left: 10px;
+        }
+
         .scorecard {
             margin-top: 16px;
             display: grid;
@@ -183,6 +187,7 @@
     <p id="totalScore"></p>
     <div class="scorecard" id="scorecard"></div>
     <br>
+    <button id="shareBtn">Share Score</button>
     <button id="restartBtn">Play Again</button>
 </div>
 
@@ -278,14 +283,15 @@ const courses = [
         ],
         water: []
     },
-    { // Hole 8 — Island green
+    { // Hole 8 — Island green with bridge
         par: 3,
         ball: { x: 0.5, y: 0.85 },
         hole: { x: 0.5, y: 0.2 },
         walls: [],
         obstacles: [],
         water: [
-            { x: 0.15, y: 0.05, w: 0.7, h: 0.35 }
+            { x: 0.15, y: 0.05, w: 0.30, h: 0.35 },
+            { x: 0.55, y: 0.05, w: 0.30, h: 0.35 }
         ]
     },
     { // Hole 9 — The Gauntlet
@@ -729,6 +735,108 @@ document.getElementById('nextHoleBtn').addEventListener('click', () => {
         initHole();
     }
 });
+
+function generateScoreImage() {
+    const c = document.createElement('canvas');
+    c.width = 600; c.height = 400;
+    const cx = c.getContext('2d');
+
+    // Background
+    cx.fillStyle = '#1a472a';
+    cx.fillRect(0, 0, 600, 400);
+
+    // Gold border
+    cx.strokeStyle = '#c9a84c';
+    cx.lineWidth = 4;
+    cx.strokeRect(12, 12, 576, 376);
+
+    // Title
+    cx.fillStyle = '#c9a84c';
+    cx.font = 'bold 28px Georgia, serif';
+    cx.textAlign = 'center';
+    cx.fillText('JHI MINI GOLF', 300, 55);
+
+    // Subtitle
+    cx.fillStyle = 'rgba(255,255,255,0.6)';
+    cx.font = '16px Georgia, serif';
+    cx.fillText('Scorecard', 300, 80);
+
+    // Hole headers
+    const startX = 50, rowY = 120, colW = 55;
+    cx.font = 'bold 14px Georgia, serif';
+    cx.fillStyle = 'rgba(255,255,255,0.5)';
+    cx.textAlign = 'center';
+    for (let i = 0; i < courses.length; i++) {
+        cx.fillText('H' + (i + 1), startX + i * colW, rowY);
+    }
+    cx.fillText('TOT', startX + courses.length * colW, rowY);
+
+    // Par row
+    cx.fillStyle = 'rgba(255,255,255,0.4)';
+    cx.font = '13px Georgia, serif';
+    for (let i = 0; i < courses.length; i++) {
+        cx.fillText(courses[i].par, startX + i * colW, rowY + 22);
+    }
+    const totalPar = courses.reduce((a, c) => a + c.par, 0);
+    cx.fillText(totalPar, startX + courses.length * colW, rowY + 22);
+
+    // Score row
+    cx.font = 'bold 18px Georgia, serif';
+    const totalStrokes = scores.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < scores.length; i++) {
+        const diff = scores[i] - courses[i].par;
+        cx.fillStyle = diff < 0 ? '#4CAF50' : diff === 0 ? '#c9a84c' : '#e57373';
+        cx.fillText(scores[i], startX + i * colW, rowY + 50);
+    }
+    cx.fillStyle = '#c9a84c';
+    cx.fillText(totalStrokes, startX + courses.length * colW, rowY + 50);
+
+    // Divider
+    cx.strokeStyle = 'rgba(255,255,255,0.15)';
+    cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(40, 200);
+    cx.lineTo(560, 200);
+    cx.stroke();
+
+    // Total score large
+    const diff = totalStrokes - totalPar;
+    const diffStr = diff === 0 ? 'Even' : diff > 0 ? '+' + diff : '' + diff;
+    cx.fillStyle = '#fff';
+    cx.font = 'bold 36px Georgia, serif';
+    cx.fillText(totalStrokes + ' Strokes', 300, 255);
+
+    cx.fillStyle = diff <= 0 ? '#4CAF50' : '#e57373';
+    cx.font = 'bold 24px Georgia, serif';
+    cx.fillText(diffStr + ' (Par ' + totalPar + ')', 300, 290);
+
+    // Footer
+    cx.fillStyle = 'rgba(255,255,255,0.3)';
+    cx.font = '14px Georgia, serif';
+    cx.fillText('jacksholeinvestments.com', 300, 370);
+
+    return c;
+}
+
+async function shareScore() {
+    const c = generateScoreImage();
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    const file = new File([blob], 'jhi-mini-golf-score.png', { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({ files: [file], title: 'JHI Mini Golf Score' });
+            return;
+        } catch (e) { /* user cancelled or error, fall through to download */ }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'jhi-mini-golf-score.png';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+document.getElementById('shareBtn').addEventListener('click', shareScore);
 
 document.getElementById('restartBtn').addEventListener('click', () => {
     document.getElementById('gameOverlay').classList.add('hidden');
