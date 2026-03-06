@@ -733,6 +733,13 @@ body {
     overflow: hidden;
 }
 
+.leader-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
 .photo-overlay {
     position: absolute;
     inset: 0;
