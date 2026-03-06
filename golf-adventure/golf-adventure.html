@@ -2616,7 +2616,9 @@ async function shareScore() {
     const blob = await new Promise(r => c.toBlob(r, 'image/png'));
     const file = new File([blob], 'jhi-golf-adventure-score.png', { type: 'image/png' });
 
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Only use Web Share API on mobile (touch devices) — desktop Safari shares text only
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
             await navigator.share({ files: [file], title: 'JHI Golf Adventure Score' });
             return;
