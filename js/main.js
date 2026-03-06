@@ -200,6 +200,11 @@ class Particle {
 let lastBallX = 0;
 let lastBallY = 0;
 
+const contactSection = document.getElementById('contact');
+let holeVisible = false;
+let animFrameId = null;
+let needsUpdate = true;
+
 // ---- Landing animation state ----
 let hasTriggeredBounce1 = false;
 let hasTriggeredBounce2 = false;
@@ -275,9 +280,7 @@ function updateBall() {
         transformExtra = ` scaleX(${1 + squish}) scaleY(${1 - squish})`;
     }
 
-    golfBall.style.left = (pixelX - halfBall) + 'px';
-    golfBall.style.top = (pixelY - halfBall) + 'px';
-    golfBall.style.transform = `rotate(${pos.rot}deg) scale(${pos.scale})${transformExtra}`;
+    golfBall.style.transform = `translate(${pixelX - halfBall}px, ${pixelY - halfBall}px) rotate(${pos.rot}deg) scale(${pos.scale})${transformExtra}`;
 
     // ---- Golf club swing ----
     const clubOffsetX = w <= 480 ? 14 : w <= 768 ? 20 : 30;
@@ -323,16 +326,14 @@ function updateBall() {
     // Position the golf hole
     const holeX = (LANDING_X / 100) * window.innerWidth;
     const holeY = (LANDING_Y / 100) * window.innerHeight;
-    golfHole.style.left = (holeX - 30) + 'px';
-    golfHole.style.top = (holeY + 10) + 'px';
+    golfHole.style.transform = `translate(${holeX - 30}px, ${holeY + 10}px)`;
 
     // Show hole only when contact section is in view
-    const contactSection = document.getElementById('contact');
     const contactRect = contactSection.getBoundingClientRect();
     if (contactRect.top < window.innerHeight * 0.8) {
-        golfHole.classList.add('visible');
+        if (!holeVisible) { golfHole.classList.add('visible'); holeVisible = true; }
     } else {
-        golfHole.classList.remove('visible');
+        if (holeVisible) { golfHole.classList.remove('visible'); holeVisible = false; }
     }
 
     // --- Trigger landing effects at key moments ---
@@ -391,10 +392,27 @@ function updateBall() {
         particles[i].draw();
     }
 
-    requestAnimationFrame(updateBall);
+    // Continue loop only if there are active particles
+    if (particles.length > 0) {
+        animFrameId = requestAnimationFrame(updateBall);
+    } else {
+        animFrameId = null;
+    }
 }
 
-updateBall();
+// Run on scroll instead of continuous rAF
+function scheduleUpdate() {
+    needsUpdate = true;
+    if (!animFrameId) {
+        animFrameId = requestAnimationFrame(updateBall);
+    }
+}
+
+window.addEventListener('scroll', scheduleUpdate, { passive: true });
+window.addEventListener('resize', scheduleUpdate, { passive: true });
+
+// Initial render
+scheduleUpdate();
 
 // ==================== MOBILE NAV ====================
 
