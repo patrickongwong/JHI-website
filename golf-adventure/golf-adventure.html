@@ -398,6 +398,27 @@ function updateHeartsDisplay() {
     el.textContent = s;
 }
 
+function damagePlayer(amount) {
+    if (player.invincible > 0) return;
+    player.hp -= amount;
+    player.invincible = 90; // ~1.5 seconds at 60fps
+    updateHeartsDisplay();
+    spawnParticles(player.x, player.y + player.h / 2, '#f44', 8, 3);
+
+    if (player.hp <= 0) {
+        strokes++;
+        document.getElementById('strokeNum').textContent = strokes;
+        document.getElementById('statusText').textContent = 'KO! +1 penalty';
+        player.hp = player.maxHp;
+        updateHeartsDisplay();
+        const level = levels[currentHole];
+        const pGY = getGroundY(level.playerStart.x) || (canvas.height - 80 * S);
+        player.x = level.playerStart.x;
+        player.y = pGY - player.h;
+        player.vx = 0; player.vy = 0;
+    }
+}
+
 // ==================== INIT ====================
 function initHole() {
     const level = levels[currentHole];
@@ -564,6 +585,7 @@ function update() {
     const level = levels[currentHole];
     if (ball.sunk) return;
     gameTime++;
+    if (player.invincible > 0) player.invincible--;
 
     // Mobile aim animation
     if (mobileHitMode) {
@@ -631,10 +653,13 @@ function update() {
     }
 
     if (player.y > canvas.height + 50) {
-        const pGY = getGroundY(level.playerStart.x) || (canvas.height - 80 * S);
-        player.x = level.playerStart.x;
-        player.y = pGY - player.h;
-        player.vx = 0; player.vy = 0;
+        damagePlayer(1);
+        if (player.hp > 0) {
+            const pGY = getGroundY(level.playerStart.x) || (canvas.height - 80 * S);
+            player.x = level.playerStart.x;
+            player.y = pGY - player.h;
+            player.vx = 0; player.vy = 0;
+        }
     }
     player.x = Math.max(10, player.x);
 
@@ -901,6 +926,22 @@ function getTheme() {
         platBlade: '#5cc07a',
         ambientTint: 'rgba(100, 150, 255, 0.03)',
     };
+}
+
+function simulateTrajectory(startX, startY, vx, vy, steps) {
+    const points = [];
+    let x = startX, y = startY;
+    for (let i = 0; i < steps; i++) {
+        vy += GRAVITY;
+        vx *= BALL_AIR_DRAG;
+        vy *= BALL_AIR_DRAG;
+        x += vx;
+        y += vy;
+        points.push({ x, y });
+        const gy = getGroundY(x);
+        if (gy !== null && y >= gy) break;
+    }
+    return points;
 }
 
 // ==================== DRAWING ====================
@@ -1404,6 +1445,21 @@ function draw() {
         ctx.fillStyle = '#fff';
         ctx.font = `bold ${11 * S}px Georgia`;
         ctx.fillText(Math.round(pRatio * 100) + '%', ball.x + Math.cos(angle) * lineLen + 10, ball.y + Math.sin(angle) * lineLen - 8);
+
+        // Autoflex trajectory preview
+        if (equipment.shaft >= 1) {
+            const simVx = Math.cos(angle) * power;
+            const simVy = Math.sin(angle) * power;
+            const pts = simulateTrajectory(ball.x, ball.y, simVx, simVy, 25);
+            ctx.fillStyle = 'rgba(255, 105, 180, 0.5)';
+            pts.forEach((p, i) => {
+                if (i % 2 === 0) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
     }
 
     // Mobile aim visualization
@@ -1443,6 +1499,22 @@ function draw() {
             ctx.lineWidth = 1;
             ctx.strokeRect(bx, by, barW, barH);
         }
+
+        // Autoflex trajectory preview (mobile)
+        if (equipment.shaft >= 1 && mobileAimPhase === 'power') {
+            const dir = player.facing;
+            const simVx = Math.cos(mobileAimAngle) * mobileAimPower * dir * getClubPower();
+            const simVy = Math.sin(mobileAimAngle) * mobileAimPower * getClubPower();
+            const pts = simulateTrajectory(ball.x, ball.y, simVx, simVy, 25);
+            ctx.fillStyle = 'rgba(255, 105, 180, 0.5)';
+            pts.forEach((p, i) => {
+                if (i % 2 === 0) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
     }
 
     // --- Player ---
@@ -1475,6 +1547,9 @@ function draw() {
 }
 
 function drawPlayer() {
+    // Invincibility flash
+    const playerFlashing = player.invincible > 0 && Math.floor(player.invincible / 4) % 2 === 0;
+
     const x = player.x;
     const y = player.y;
     const f = player.facing;
@@ -1485,6 +1560,7 @@ function drawPlayer() {
     ctx.save();
     ctx.translate(x, y);
     if (f === -1) ctx.scale(-1, 1);
+    if (playerFlashing) ctx.globalAlpha = 0.3;
 
     const legSwing = player.walking ? Math.sin(player.walkFrame * 4) * 7 : 0;
 
@@ -1523,7 +1599,7 @@ function drawPlayer() {
     ctx.stroke();
 
     // Shoes
-    ctx.fillStyle = '#2a2a2a';
+    ctx.fillStyle = BOOT_TIERS[equipment.boots].color;
     ctx.beginPath();
     ctx.roundRect(lFootX - 3 * u, footY - 4 * u, 8 * u, 5 * u, 2);
     ctx.fill();
@@ -1531,11 +1607,28 @@ function drawPlayer() {
     ctx.roundRect(rFootX - 3 * u, footY - 4 * u, 8 * u, 5 * u, 2);
     ctx.fill();
 
-    // --- Body (blue patterned button-up shirt) ---
+    if (BOOT_TIERS[equipment.boots].wings) {
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.beginPath();
+        ctx.moveTo(lFootX - 3 * u, footY - 4 * u);
+        ctx.lineTo(lFootX - 8 * u, footY - 8 * u);
+        ctx.lineTo(lFootX - 2 * u, footY - 6 * u);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(rFootX - 3 * u, footY - 4 * u);
+        ctx.lineTo(rFootX - 8 * u, footY - 8 * u);
+        ctx.lineTo(rFootX - 2 * u, footY - 6 * u);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // --- Body (shirt based on equipment tier) ---
+    const shirtColors = SHIRT_TIERS[equipment.shirt].colors;
     const shirtGrad = ctx.createLinearGradient(-8 * u, torsoTop, 8 * u, torsoBot);
-    shirtGrad.addColorStop(0, '#4080b8');
-    shirtGrad.addColorStop(0.5, '#3a6fa8');
-    shirtGrad.addColorStop(1, '#2d5a8c');
+    shirtGrad.addColorStop(0, shirtColors[0]);
+    shirtGrad.addColorStop(0.5, shirtColors[1]);
+    shirtGrad.addColorStop(1, shirtColors[2]);
     ctx.fillStyle = shirtGrad;
     ctx.beginPath();
     ctx.moveTo(-9 * u, torsoTop);
@@ -1545,16 +1638,52 @@ function drawPlayer() {
     ctx.closePath();
     ctx.fill();
 
-    // Shirt pattern
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    [[-4,19],[2,19],[0,23],[4,23],[-4,27],[2,27],[-2,31],[4,31]].forEach(([dx,dy]) => {
-        ctx.beginPath();
-        ctx.arc(dx * u, dy * u, 1 * u, 0, Math.PI * 2);
-        ctx.fill();
-    });
+    // Shirt pattern based on tier
+    if (equipment.shirt === 0) {
+        // Plain white - no pattern
+    }
+    if (equipment.shirt === 1) {
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        [[-4,19],[2,19],[0,23],[4,23],[-4,27],[2,27],[-2,31],[4,31]].forEach(([dx,dy]) => {
+            ctx.beginPath();
+            ctx.arc(dx * u, dy * u, 1 * u, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+    if (equipment.shirt === 2) {
+        // Striped
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1.5 * u;
+        for (let sy = torsoTop + 4 * u; sy < torsoBot - 2 * u; sy += 4 * u) {
+            ctx.beginPath();
+            ctx.moveTo(-8 * u, sy);
+            ctx.lineTo(8 * u, sy);
+            ctx.stroke();
+        }
+    }
+    if (equipment.shirt === 3) {
+        // Gold trim
+        ctx.strokeStyle = '#c9a84c';
+        ctx.lineWidth = 1.5 * u;
+        ctx.strokeRect(-9 * u, torsoTop, 18 * u, torsoBot - torsoTop);
+    }
+    if (equipment.shirt === 4) {
+        // Diamond argyle
+        ctx.strokeStyle = 'rgba(185, 242, 255, 0.4)';
+        ctx.lineWidth = 1 * u;
+        for (let dy = torsoTop + 5 * u; dy < torsoBot - 5 * u; dy += 8 * u) {
+            ctx.beginPath();
+            ctx.moveTo(0, dy - 4 * u);
+            ctx.lineTo(5 * u, dy);
+            ctx.lineTo(0, dy + 4 * u);
+            ctx.lineTo(-5 * u, dy);
+            ctx.closePath();
+            ctx.stroke();
+        }
+    }
 
     // Collar
-    ctx.strokeStyle = '#2d5a8c';
+    ctx.strokeStyle = shirtColors[2];
     ctx.lineWidth = 1.5 * u;
     ctx.beginPath();
     ctx.moveTo(-5 * u, torsoTop);
@@ -1580,7 +1709,7 @@ function drawPlayer() {
     ctx.lineCap = 'round';
 
     // Left sleeve + arm
-    ctx.strokeStyle = '#3a6fa8';
+    ctx.strokeStyle = shirtColors[1];
     ctx.lineWidth = 5 * u;
     ctx.beginPath();
     ctx.moveTo(-9 * u, torsoTop + 2 * u);
@@ -1595,7 +1724,7 @@ function drawPlayer() {
 
     // Right sleeve + arm (holding club if near ball)
     const nearBall = Math.abs(player.x - ball.x) < HIT_RANGE && ball.onGround;
-    ctx.strokeStyle = '#3a6fa8';
+    ctx.strokeStyle = shirtColors[1];
     ctx.lineWidth = 5 * u;
     ctx.beginPath();
     ctx.moveTo(9 * u, torsoTop + 2 * u);
@@ -1610,14 +1739,14 @@ function drawPlayer() {
         ctx.lineTo(15 * u, torsoTop + 12 * u);
         ctx.stroke();
         // Golf club shaft
-        ctx.strokeStyle = '#ccc';
+        ctx.strokeStyle = SHAFT_TIERS[equipment.shaft].color;
         ctx.lineWidth = 2 * u;
         ctx.beginPath();
         ctx.moveTo(15 * u, torsoTop + 12 * u);
         ctx.lineTo(17 * u, footY - 2 * u);
         ctx.stroke();
         // Club head
-        ctx.fillStyle = '#888';
+        ctx.fillStyle = CLUB_TIERS[equipment.club].color;
         ctx.beginPath();
         ctx.roundRect(14 * u, footY - 4 * u, 8 * u, 3.5 * u, 1.5);
         ctx.fill();
@@ -1701,6 +1830,7 @@ function drawPlayer() {
     ctx.arc(0, headCenter + 3 * u, 3.5 * u, 0.1, Math.PI - 0.1);
     ctx.stroke();
 
+    if (playerFlashing) ctx.globalAlpha = 1;
     ctx.restore();
 }
 
