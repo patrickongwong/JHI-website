@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JHI — Holding Company</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Golf Ball Element -->
+    <div class="golf-ball" id="golfBall">
+        <div class="ball-inner">
+            <div class="dimple-pattern"></div>
+        </div>
+        <div class="ball-shadow" id="ballShadow"></div>
+    </div>
+
+    <!-- Trail particles -->
+    <canvas id="trailCanvas"></canvas>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="#" class="logo">JHI</a>
+            <ul class="nav-links">
+                <li><a href="#about">About</a></li>
+                <li><a href="#portfolio">Portfolio</a></li>
+                <li><a href="#leadership">Leadership</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="container">
+            <div class="hero-content">
+                <p class="hero-tagline">Est. 2010</p>
+                <h1>Driving <span class="text-accent">Long-Term</span> Value</h1>
+                <p class="hero-subtitle">JHI is a diversified holding company with strategic investments across industries that shape the future.</p>
+                <a href="#about" class="btn btn-primary">Explore Our Story</a>
+            </div>
+        </div>
+        <div class="hero-grass"></div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="section about">
+        <div class="container">
+            <div class="section-badge">Who We Are</div>
+            <h2 class="section-title">About JHI</h2>
+            <div class="about-grid">
+                <div class="about-text">
+                    <p>JHI is a holding company focused on long-term value creation through strategic investments and operational excellence. We partner with exceptional management teams to build market-leading businesses.</p>
+                    <p>Our approach combines patient capital with active engagement, enabling our portfolio companies to pursue sustainable growth strategies that deliver lasting results.</p>
+                </div>
+                <div class="about-stats">
+                    <div class="stat" data-target="10">
+                        <span class="stat-number">0</span><span class="stat-plus">+</span>
+                        <span class="stat-label">Portfolio Companies</span>
+                    </div>
+                    <div class="stat" data-target="2" data-prefix="$" data-suffix="B+">
+                        <span class="stat-number">0</span>
+                        <span class="stat-label">Assets Under Management</span>
+                    </div>
+                    <div class="stat" data-target="15">
+                        <span class="stat-number">0</span><span class="stat-plus">+</span>
+                        <span class="stat-label">Years of Experience</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portfolio Section -->
+    <section id="portfolio" class="section portfolio">
+        <div class="container">
+            <div class="section-badge">Investments</div>
+            <h2 class="section-title">Our Portfolio</h2>
+            <p class="section-subtitle">Strategic investments across key sectors</p>
+            <div class="portfolio-grid">
+                <div class="portfolio-card" data-delay="0">
+                    <div class="card-flag"></div>
+                    <div class="card-number">01</div>
+                    <h3>Technology</h3>
+                    <p>Investing in innovative technology companies driving digital transformation across industries.</p>
+                </div>
+                <div class="portfolio-card" data-delay="100">
+                    <div class="card-flag"></div>
+                    <div class="card-number">02</div>
+                    <h3>Real Estate</h3>
+                    <p>Premium commercial and residential properties in high-growth markets worldwide.</p>
+                </div>
+                <div class="portfolio-card" data-delay="200">
+                    <div class="card-flag"></div>
+                    <div class="card-number">03</div>
+                    <h3>Industrial</h3>
+                    <p>Manufacturing and infrastructure businesses with strong competitive moats and scale.</p>
+                </div>
+                <div class="portfolio-card" data-delay="300">
+                    <div class="card-flag"></div>
+                    <div class="card-number">04</div>
+                    <h3>Financial Services</h3>
+                    <p>Banking, insurance, and fintech platforms serving diverse global markets.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Leadership Section -->
+    <section id="leadership" class="section leadership">
+        <div class="container">
+            <div class="section-badge">Our Team</div>
+            <h2 class="section-title">Leadership</h2>
+            <p class="section-subtitle">Experienced professionals driving our vision forward</p>
+            <div class="leadership-grid">
+                <div class="leader-card">
+                    <div class="leader-photo">
+                        <div class="photo-overlay"></div>
+                    </div>
+                    <h3>Name</h3>
+                    <p class="leader-title">Chairman & CEO</p>
+                </div>
+                <div class="leader-card">
+                    <div class="leader-photo">
+                        <div class="photo-overlay"></div>
+                    </div>
+                    <h3>Name</h3>
+                    <p class="leader-title">Chief Financial Officer</p>
+                </div>
+                <div class="leader-card">
+                    <div class="leader-photo">
+                        <div class="photo-overlay"></div>
+                    </div>
+                    <h3>Name</h3>
+                    <p class="leader-title">Chief Operating Officer</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="section contact">
+        <div class="container">
+            <div class="section-badge">Reach Out</div>
+            <h2 class="section-title">Contact</h2>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <h3>Get in Touch</h3>
+                    <p>We welcome inquiries from potential partners, investors, and business owners looking to build something lasting.</p>
+                    <div class="contact-details">
+                        <div class="contact-item">
+                            <span class="contact-icon">&#9993;</span>
+                            <p>info@jhi.com</p>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-icon">&#9742;</span>
+                            <p>+1 (555) 000-0000</p>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-icon">&#9873;</span>
+                            <p>123 Business Ave, Suite 100<br>City, State 00000</p>
+                        </div>
+                    </div>
+                </div>
+                <form class="contact-form" onsubmit="handleSubmit(event)">
+                    <input type="text" name="name" placeholder="Full Name" required>
+                    <input type="email" name="email" placeholder="Email Address" required>
+                    <textarea name="message" placeholder="Your Message" rows="5" required></textarea>
+                    <button type="submit" class="btn btn-primary">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <span class="logo">JHI</span>
+                <p>&copy; 2026 JHI Holdings. All rights reserved.</p>
+            </div>
+        </div>
+        <div class="footer-grass"></div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
