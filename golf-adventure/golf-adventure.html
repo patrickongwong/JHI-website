@@ -95,9 +95,11 @@
 <div class="header">
     <div class="title">JHI GOLF ADVENTURE</div>
     <div class="info">
-        <span>Hole <strong id="holeNum">1</strong>/6</span>
+        <span id="heartsDisplay"></span>
+        <span>Hole <strong id="holeNum">1</strong>/8</span>
         <span>Par <strong id="parNum">3</strong></span>
         <span>Strokes <strong id="strokeNum">0</strong></span>
+        <span id="coinDisplay" style="color:#c9a84c;">0 coins</span>
     </div>
 </div>
 
@@ -244,6 +246,65 @@ let scores = [];
 let cameraX = 0;
 let gameTime = 0;
 
+// ==================== EQUIPMENT & ECONOMY ====================
+let coins = parseInt(localStorage.getItem('jhi-golf-coins') || '0');
+let gameMode = 'play'; // 'play' or 'shop'
+
+const equipment = {
+    club: parseInt(localStorage.getItem('jhi-equip-club') || '0'),
+    shaft: parseInt(localStorage.getItem('jhi-equip-shaft') || '0'),
+    boots: parseInt(localStorage.getItem('jhi-equip-boots') || '0'),
+    shirt: parseInt(localStorage.getItem('jhi-equip-shirt') || '0')
+};
+
+function saveProgress() {
+    localStorage.setItem('jhi-golf-coins', coins);
+    localStorage.setItem('jhi-equip-club', equipment.club);
+    localStorage.setItem('jhi-equip-shaft', equipment.shaft);
+    localStorage.setItem('jhi-equip-boots', equipment.boots);
+    localStorage.setItem('jhi-equip-shirt', equipment.shirt);
+}
+
+const CLUB_TIERS = [
+    { name: 'Copper', power: 1.0, damage: 1, color: '#b87333' },
+    { name: 'Silver', power: 1.2, damage: 2, color: '#c0c0c0' },
+    { name: 'Steel',  power: 1.4, damage: 3, color: '#71797E' },
+    { name: 'Gold',   power: 1.7, damage: 4, color: '#c9a84c' },
+    { name: 'Diamond',power: 2.0, damage: 5, color: '#b9f2ff' }
+];
+
+const SHAFT_TIERS = [
+    { name: 'Standard', color: '#ccc' },
+    { name: 'Autoflex', color: '#ff69b4' }
+];
+
+const BOOT_TIERS = [
+    { name: 'Standard',    maxJumps: 1, color: '#2a2a2a', wings: false },
+    { name: 'Double-Jump', maxJumps: 2, color: '#4a3a2a', wings: false },
+    { name: 'Triple-Jump', maxJumps: 3, color: '#5a4a3a', wings: false },
+    { name: 'Flying',      maxJumps: Infinity, color: '#eee', wings: true }
+];
+
+const SHIRT_TIERS = [
+    { name: 'Plain White',    hearts: 2, colors: ['#f0f0f0','#e8e8e8','#ddd'] },
+    { name: 'Navy Polo',      hearts: 3, colors: ['#4080b8','#3a6fa8','#2d5a8c'] },
+    { name: 'Striped',        hearts: 4, colors: ['#3a5a8c','#f0f0f0','#3a5a8c'] },
+    { name: 'Gold-Trimmed',   hearts: 5, colors: ['#2d5a8c','#3a6fa8','#c9a84c'] },
+    { name: 'Diamond Argyle', hearts: 6, colors: ['#1a1a3a','#b9f2ff','#1a1a3a'] }
+];
+
+const SHOP_PRICES = {
+    club:  [0, 3, 5, 8, 12],
+    shaft: [0, 6],
+    boots: [0, 4, 7, 12],
+    shirt: [0, 3, 5, 8, 12]
+};
+
+function getMaxHearts() { return SHIRT_TIERS[equipment.shirt].hearts; }
+function getMaxJumps() { return BOOT_TIERS[equipment.boots].maxJumps; }
+function getClubPower() { return CLUB_TIERS[equipment.club].power; }
+function getClubDamage() { return CLUB_TIERS[equipment.club].damage; }
+
 function getGroundY(x) {
     const level = levels[currentHole];
     const baseY = canvas.height - 80 * S;
@@ -275,7 +336,12 @@ const player = {
     x: 0, y: 0, vx: 0, vy: 0,
     w: 20, h: 50,
     onGround: false, facing: 1,
-    walking: false, walkFrame: 0
+    walking: false, walkFrame: 0,
+    hp: 2, maxHp: 2,
+    jumpsLeft: 1,
+    jumpHeld: false,
+    buyHeld: false,
+    invincible: 0
 };
 
 // Ball
@@ -322,6 +388,16 @@ function spawnParticles(x, y, color, count, speed) {
     }
 }
 
+function updateHeartsDisplay() {
+    const el = document.getElementById('heartsDisplay');
+    if (!el) return;
+    let s = '';
+    for (let i = 0; i < player.maxHp; i++) {
+        s += i < player.hp ? '\u2764' : '\u2661';
+    }
+    el.textContent = s;
+}
+
 // ==================== INIT ====================
 function initHole() {
     const level = levels[currentHole];
@@ -349,6 +425,13 @@ function initHole() {
     mobileHitMode = false;
     cameraX = 0;
     particles = [];
+
+    player.maxHp = getMaxHearts();
+    player.hp = player.maxHp;
+    player.jumpsLeft = getMaxJumps() === Infinity ? 99 : getMaxJumps();
+    player.invincible = 0;
+    updateHeartsDisplay();
+    document.getElementById('coinDisplay').textContent = coins + ' coins';
 
     document.getElementById('holeNum').textContent = currentHole + 1;
     document.getElementById('parNum').textContent = level.par;
@@ -402,8 +485,9 @@ function handleMobileHit() {
     } else if (mobileAimPhase === 'power') {
         // Execute hit
         const dir = player.facing;
-        ball.vx = Math.cos(mobileAimAngle) * mobileAimPower * dir;
-        ball.vy = Math.sin(mobileAimAngle) * mobileAimPower;
+        const clubPow = getClubPower();
+        ball.vx = Math.cos(mobileAimAngle) * mobileAimPower * dir * clubPow;
+        ball.vy = Math.sin(mobileAimAngle) * mobileAimPower * clubPow;
         ball.onGround = false;
         ball.justHit = 10;
         strokes++;
@@ -464,7 +548,7 @@ function endAim(pos) {
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < 8) return;
 
-    const power = Math.min(dist / 8, MAX_HIT_POWER);
+    const power = Math.min(dist / 8, MAX_HIT_POWER) * getClubPower();
     const angle = Math.atan2(dy, dx);
     ball.vx = Math.cos(angle) * power;
     ball.vy = Math.sin(angle) * power;
@@ -508,10 +592,22 @@ function update() {
         player.vx = 0;
     }
 
-    if ((keys['w'] || keys['arrowup'] || keys[' ']) && player.onGround) {
-        player.vy = JUMP_FORCE;
-        player.onGround = false;
+    const jumpPressed = keys['w'] || keys['arrowup'] || keys[' '];
+    if (jumpPressed && !player.jumpHeld) {
+        const maxJ = getMaxJumps();
+        if (player.onGround || player.jumpsLeft > 0) {
+            player.vy = JUMP_FORCE;
+            player.onGround = false;
+            if (maxJ !== Infinity) {
+                player.jumpsLeft--;
+            }
+            if (BOOT_TIERS[equipment.boots].wings && !player.onGround) {
+                spawnParticles(player.x, player.y + player.h * 0.8, '#fff', 4, 1.5);
+            }
+        }
+        player.jumpHeld = true;
     }
+    if (!jumpPressed) player.jumpHeld = false;
 
     player.vy += GRAVITY;
     player.x += player.vx;
@@ -529,6 +625,7 @@ function update() {
         player.y = effectiveGround - player.h;
         player.vy = 0;
         player.onGround = true;
+        player.jumpsLeft = getMaxJumps() === Infinity ? 99 : getMaxJumps();
     } else if (effectiveGround === null) {
         player.onGround = false;
     }
@@ -737,49 +834,186 @@ function update() {
     }
 }
 
+// ==================== TIME OF DAY ====================
+// Holes 1-2: morning/day, 3-4: late afternoon/sunset, 5-6: night
+function getTimeOfDay() {
+    if (currentHole <= 1) return 'day';
+    if (currentHole <= 3) return 'afternoon';
+    return 'night';
+}
+
+function getTheme() {
+    const tod = getTimeOfDay();
+    if (tod === 'day') return {
+        sky: ['#4a90d9', '#6db3f2', '#87ceeb', '#a8d8a8', '#3a8a4a'],
+        starAlpha: 0,
+        cloudAlpha: 0.18,
+        sunMoon: 'sun',
+        sunY: 55,
+        hillFar: 'rgba(45, 120, 70, 0.5)',
+        hillNear: 'rgba(55, 140, 80, 0.45)',
+        grassTop: '#4db86a',
+        grassMid: '#3a9a55',
+        grassBot: '#2a7a40',
+        grassBlade: '#62d085',
+        dirt: '#7a5a2e',
+        earth: '#5a3e1b',
+        platGrass: '#4db86a',
+        platDark: '#3a8a55',
+        platBlade: '#72d895',
+        ambientTint: 'rgba(255, 248, 220, 0.04)',
+    };
+    if (tod === 'afternoon') return {
+        sky: ['#1a2a5c', '#6a3a6a', '#d4764e', '#e8a840', '#5a6a30'],
+        starAlpha: 0.15,
+        cloudAlpha: 0.12,
+        sunMoon: 'sunset',
+        sunY: 0.55,
+        hillFar: 'rgba(50, 60, 45, 0.6)',
+        hillNear: 'rgba(45, 70, 40, 0.55)',
+        grassTop: '#3a8a50',
+        grassMid: '#2d6a3e',
+        grassBot: '#1f5030',
+        grassBlade: '#4aa065',
+        dirt: '#6a4a22',
+        earth: '#4a3015',
+        platGrass: '#3a8a50',
+        platDark: '#2d6a40',
+        platBlade: '#52a870',
+        ambientTint: 'rgba(255, 140, 50, 0.06)',
+    };
+    return {
+        sky: ['#0d2137', '#1a3a5c', '#1a3050', '#2d6a4f', '#1a472a'],
+        starAlpha: 0.6,
+        cloudAlpha: 0.06,
+        sunMoon: 'moon',
+        sunY: 50,
+        hillFar: 'rgba(25, 60, 40, 0.6)',
+        hillNear: 'rgba(30, 75, 50, 0.5)',
+        grassTop: '#3a9960',
+        grassMid: '#2d7a4a',
+        grassBot: '#1f5a35',
+        grassBlade: '#4ab06a',
+        dirt: '#5a3e1b',
+        earth: '#3d2810',
+        platGrass: '#3a9960',
+        platDark: '#2d6a4f',
+        platBlade: '#5cc07a',
+        ambientTint: 'rgba(100, 150, 255, 0.03)',
+    };
+}
+
 // ==================== DRAWING ====================
 function draw() {
     const W = canvas.width, H = canvas.height;
     const level = levels[currentHole];
     const baseY = H - 80 * S;
+    const theme = getTheme();
+    const tod = getTimeOfDay();
 
     ctx.save();
 
     // Sky gradient
     const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-    skyGrad.addColorStop(0, '#0d2137');
-    skyGrad.addColorStop(0.3, '#1a3a5c');
-    skyGrad.addColorStop(0.65, '#2d6a4f');
-    skyGrad.addColorStop(1, '#1a472a');
+    skyGrad.addColorStop(0, theme.sky[0]);
+    skyGrad.addColorStop(0.25, theme.sky[1]);
+    skyGrad.addColorStop(0.5, theme.sky[2]);
+    skyGrad.addColorStop(0.75, theme.sky[3]);
+    skyGrad.addColorStop(1, theme.sky[4]);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // Stars
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    const starSeed = [23, 67, 134, 201, 278, 345, 412, 489, 556, 623, 690, 45, 112, 179, 246, 313, 380, 447, 514, 581];
-    starSeed.forEach((sx, i) => {
-        const sy = 10 + (i * 37 + sx) % (H * 0.35);
-        const blink = 0.3 + 0.7 * Math.abs(Math.sin(gameTime * 0.01 + i));
-        ctx.globalAlpha = blink * 0.6;
-        ctx.beginPath();
-        ctx.arc(sx % W, sy, 1 + (i % 3) * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-    });
-    ctx.globalAlpha = 1;
+    // Stars (fade in with afternoon, full at night)
+    if (theme.starAlpha > 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        const starSeed = [23, 67, 134, 201, 278, 345, 412, 489, 556, 623, 690, 45, 112, 179, 246, 313, 380, 447, 514, 581];
+        starSeed.forEach((sx, i) => {
+            const sy = 10 + (i * 37 + sx) % (H * 0.35);
+            const blink = 0.3 + 0.7 * Math.abs(Math.sin(gameTime * 0.01 + i));
+            ctx.globalAlpha = blink * theme.starAlpha;
+            ctx.beginPath();
+            ctx.arc(sx % W, sy, 1 + (i % 3) * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+    }
 
-    // Moon
-    ctx.fillStyle = 'rgba(255, 250, 220, 0.9)';
-    ctx.beginPath();
-    ctx.arc(W - 80, 50, 22, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(240, 230, 190, 0.3)';
-    ctx.beginPath();
-    ctx.arc(W - 80, 50, 30, 0, Math.PI * 2);
-    ctx.fill();
+    // Sun / Sunset / Moon
+    if (tod === 'day') {
+        // Sun with glow
+        const sunX = W - 100, sunY = 60;
+        const sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 60);
+        sunGlow.addColorStop(0, 'rgba(255, 240, 150, 0.9)');
+        sunGlow.addColorStop(0.3, 'rgba(255, 220, 100, 0.3)');
+        sunGlow.addColorStop(0.7, 'rgba(255, 200, 80, 0.08)');
+        sunGlow.addColorStop(1, 'rgba(255, 200, 80, 0)');
+        ctx.fillStyle = sunGlow;
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, 60, 0, Math.PI * 2);
+        ctx.fill();
+        // Sun rays
+        ctx.strokeStyle = 'rgba(255, 230, 120, 0.12)';
+        ctx.lineWidth = 1.5;
+        for (let r = 0; r < 12; r++) {
+            const a = r * Math.PI / 6 + gameTime * 0.003;
+            ctx.beginPath();
+            ctx.moveTo(sunX + Math.cos(a) * 22, sunY + Math.sin(a) * 22);
+            ctx.lineTo(sunX + Math.cos(a) * (36 + Math.sin(gameTime * 0.02 + r) * 4), sunY + Math.sin(a) * (36 + Math.sin(gameTime * 0.02 + r) * 4));
+            ctx.stroke();
+        }
+        // Sun body
+        ctx.fillStyle = '#ffe866';
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.6)';
+        ctx.beginPath();
+        ctx.arc(sunX - 4, sunY - 4, 8, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (tod === 'afternoon') {
+        // Setting sun at horizon
+        const sunX = W * 0.75, sunY = baseY - 60;
+        // Horizon glow
+        const horizGlow = ctx.createRadialGradient(sunX, sunY + 20, 10, sunX, sunY + 20, 150);
+        horizGlow.addColorStop(0, 'rgba(255, 160, 50, 0.35)');
+        horizGlow.addColorStop(0.4, 'rgba(255, 100, 50, 0.15)');
+        horizGlow.addColorStop(1, 'rgba(255, 80, 30, 0)');
+        ctx.fillStyle = horizGlow;
+        ctx.fillRect(0, baseY - 180, W, 200);
+        // Sun body (partially behind horizon)
+        const sunGrad = ctx.createRadialGradient(sunX, sunY, 5, sunX, sunY, 25);
+        sunGrad.addColorStop(0, '#ffe080');
+        sunGrad.addColorStop(0.6, '#ff9944');
+        sunGrad.addColorStop(1, '#e85530');
+        ctx.fillStyle = sunGrad;
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, 22, 0, Math.PI * 2);
+        ctx.fill();
+        // Sun glow ring
+        ctx.fillStyle = 'rgba(255, 180, 80, 0.15)';
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, 35, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        // Moon (night)
+        ctx.fillStyle = 'rgba(255, 250, 220, 0.9)';
+        ctx.beginPath();
+        ctx.arc(W - 80, 50, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(240, 230, 190, 0.3)';
+        ctx.beginPath();
+        ctx.arc(W - 80, 50, 30, 0, Math.PI * 2);
+        ctx.fill();
+        // Moon craters
+        ctx.fillStyle = 'rgba(200, 190, 160, 0.2)';
+        ctx.beginPath(); ctx.arc(W - 88, 45, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(W - 74, 55, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(W - 80, 42, 2, 0, Math.PI * 2); ctx.fill();
+    }
 
     // Distant hills (parallax)
     const hillOffset = cameraX * 0.15;
-    ctx.fillStyle = 'rgba(25, 60, 40, 0.6)';
+    ctx.fillStyle = theme.hillFar;
     ctx.beginPath();
     ctx.moveTo(0, baseY);
     for (let x = 0; x <= W; x += 2) {
@@ -791,8 +1025,25 @@ function draw() {
     ctx.closePath();
     ctx.fill();
 
+    // Trees on distant hills
+    if (tod === 'day' || tod === 'afternoon') {
+        const treeColor = tod === 'day' ? 'rgba(30, 90, 45, 0.5)' : 'rgba(25, 55, 35, 0.5)';
+        ctx.fillStyle = treeColor;
+        for (let tx = 20; tx < W; tx += 35 + (tx * 7 % 20)) {
+            const hx = tx + hillOffset;
+            const treeBase = baseY - 40 - Math.sin(hx * 0.008) * 25 - Math.sin(hx * 0.003) * 40;
+            const treeH = 12 + (tx * 3 % 10);
+            ctx.beginPath();
+            ctx.moveTo(tx - 5, treeBase);
+            ctx.lineTo(tx, treeBase - treeH);
+            ctx.lineTo(tx + 5, treeBase);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
     // Closer hills
-    ctx.fillStyle = 'rgba(30, 75, 50, 0.5)';
+    ctx.fillStyle = theme.hillNear;
     ctx.beginPath();
     ctx.moveTo(0, baseY);
     for (let x = 0; x <= W; x += 2) {
@@ -805,7 +1056,7 @@ function draw() {
     ctx.fill();
 
     // Clouds
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillStyle = `rgba(255,255,255,${theme.cloudAlpha})`;
     const cloudOffset = cameraX * 0.2;
     [100, 300, 550, 750, 950].forEach((cx, i) => {
         const x = cx - cloudOffset + (i % 2) * 50;
@@ -816,7 +1067,23 @@ function draw() {
         ctx.beginPath();
         ctx.ellipse(x + 30, y + 5, 35, 12, 0, 0, Math.PI * 2);
         ctx.fill();
+        // Extra cloud body for fluffier look
+        ctx.beginPath();
+        ctx.ellipse(x - 20, y + 3, 30, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
     });
+
+    // Afternoon tint on clouds
+    if (tod === 'afternoon') {
+        ctx.fillStyle = 'rgba(255, 140, 60, 0.06)';
+        [100, 300, 550, 750, 950].forEach((cx, i) => {
+            const x = cx - cloudOffset + (i % 2) * 50;
+            const y = 40 + i * 18 + Math.sin(gameTime * 0.005 + i) * 3;
+            ctx.beginPath();
+            ctx.ellipse(x, y, 55 + i * 12, 16, 0, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
 
     // Camera transform
     ctx.translate(-cameraX, 0);
@@ -827,7 +1094,7 @@ function draw() {
         const endY = baseY + t.y + t.h;
 
         // Earth layer
-        ctx.fillStyle = '#3d2810';
+        ctx.fillStyle = theme.earth;
         ctx.beginPath();
         ctx.moveTo(t.x, startY + 12);
         ctx.lineTo(t.x + t.w, endY + 12);
@@ -837,7 +1104,7 @@ function draw() {
         ctx.fill();
 
         // Dirt layer with subtle texture
-        ctx.fillStyle = '#5a3e1b';
+        ctx.fillStyle = theme.dirt;
         ctx.beginPath();
         ctx.moveTo(t.x, startY + 6);
         ctx.lineTo(t.x + t.w, endY + 6);
@@ -846,11 +1113,23 @@ function draw() {
         ctx.closePath();
         ctx.fill();
 
+        // Dirt texture (rocks/pebbles)
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        for (let rx = t.x + 8; rx < t.x + t.w - 8; rx += 15 + (rx * 13 % 12)) {
+            const progress = (rx - t.x) / t.w;
+            const ry = startY + t.h * progress + 14 + (rx * 7 % 20);
+            if (ry < H) {
+                ctx.beginPath();
+                ctx.ellipse(rx, ry, 2 + (rx % 3), 1.5, (rx % 4) * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
         // Main grass
         const grassGrad = ctx.createLinearGradient(0, startY - 5, 0, startY + 15);
-        grassGrad.addColorStop(0, '#3a9960');
-        grassGrad.addColorStop(0.3, '#2d7a4a');
-        grassGrad.addColorStop(1, '#1f5a35');
+        grassGrad.addColorStop(0, theme.grassTop);
+        grassGrad.addColorStop(0.3, theme.grassMid);
+        grassGrad.addColorStop(1, theme.grassBot);
         ctx.fillStyle = grassGrad;
         ctx.beginPath();
         ctx.moveTo(t.x, startY);
@@ -860,18 +1139,32 @@ function draw() {
         ctx.closePath();
         ctx.fill();
 
-        // Grass blades on top edge
-        ctx.strokeStyle = '#4ab06a';
+        // Grass blades on top edge (wind animation)
+        ctx.strokeStyle = theme.grassBlade;
         ctx.lineWidth = 1.5;
+        const windPhase = gameTime * 0.015;
         for (let gx = t.x; gx < t.x + t.w; gx += 6 + Math.random() * 4) {
             const progress = (gx - t.x) / t.w;
             const gy = startY + t.h * progress;
             const bladeH = 4 + Math.random() * 5;
-            const lean = Math.sin(gx * 0.3) * 1.2;
+            const lean = Math.sin(gx * 0.3 + windPhase) * 1.8;
             ctx.beginPath();
             ctx.moveTo(gx, gy);
-            ctx.quadraticCurveTo(gx + lean, gy - bladeH * 0.6, gx + lean, gy - bladeH);
+            ctx.quadraticCurveTo(gx + lean, gy - bladeH * 0.6, gx + lean * 1.2, gy - bladeH);
             ctx.stroke();
+        }
+
+        // Occasional flowers/details in daytime
+        if (tod === 'day') {
+            const flowerColors = ['#e85', '#e58', '#fe6', '#8cf'];
+            for (let fx = t.x + 20; fx < t.x + t.w - 20; fx += 40 + (fx * 11 % 30)) {
+                const progress = (fx - t.x) / t.w;
+                const fy = startY + t.h * progress - 3;
+                ctx.fillStyle = flowerColors[Math.floor(fx * 3) % flowerColors.length];
+                ctx.beginPath();
+                ctx.arc(fx, fy, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     });
 
@@ -879,17 +1172,18 @@ function draw() {
     (level.platforms || []).forEach(p => {
         const py = baseY + (p.y || 0);
         // Platform with depth
-        ctx.fillStyle = '#2d6a4f';
+        ctx.fillStyle = theme.platDark;
         ctx.fillRect(p.x, py + 8, p.w, 22);
-        ctx.fillStyle = '#3a9960';
+        ctx.fillStyle = theme.platGrass;
         ctx.fillRect(p.x, py, p.w, 10);
-        ctx.fillStyle = '#4ab06a';
+        // Top highlight
+        ctx.fillStyle = theme.grassBlade;
         ctx.fillRect(p.x, py, p.w, 3);
         // Grass on platform
-        ctx.strokeStyle = '#5cc07a';
+        ctx.strokeStyle = theme.platBlade;
         ctx.lineWidth = 1;
         for (let gx = p.x + 3; gx < p.x + p.w - 3; gx += 5) {
-            const lean = Math.sin(gx * 0.4) * 1;
+            const lean = Math.sin(gx * 0.4 + gameTime * 0.015) * 1;
             ctx.beginPath();
             ctx.moveTo(gx, py);
             ctx.lineTo(gx + lean, py - 3 - (gx * 7 % 3));
@@ -900,21 +1194,43 @@ function draw() {
     // Water
     (level.water || []).forEach(w => {
         const wy = baseY;
-        // Deep water
+        // Deep water with time-of-day tinting
         const waterGrad = ctx.createLinearGradient(0, wy - 8, 0, H);
-        waterGrad.addColorStop(0, 'rgba(30, 120, 220, 0.7)');
-        waterGrad.addColorStop(0.5, 'rgba(20, 80, 180, 0.8)');
-        waterGrad.addColorStop(1, 'rgba(10, 40, 100, 0.9)');
+        if (tod === 'day') {
+            waterGrad.addColorStop(0, 'rgba(40, 140, 230, 0.7)');
+            waterGrad.addColorStop(0.5, 'rgba(30, 100, 200, 0.8)');
+            waterGrad.addColorStop(1, 'rgba(15, 60, 140, 0.9)');
+        } else if (tod === 'afternoon') {
+            waterGrad.addColorStop(0, 'rgba(80, 100, 160, 0.7)');
+            waterGrad.addColorStop(0.5, 'rgba(50, 60, 120, 0.8)');
+            waterGrad.addColorStop(1, 'rgba(30, 30, 80, 0.9)');
+        } else {
+            waterGrad.addColorStop(0, 'rgba(20, 80, 160, 0.7)');
+            waterGrad.addColorStop(0.5, 'rgba(15, 50, 120, 0.8)');
+            waterGrad.addColorStop(1, 'rgba(8, 25, 70, 0.9)');
+        }
         ctx.fillStyle = waterGrad;
         ctx.fillRect(w.x, wy - 8, w.w, H - wy + 20);
 
+        // Sunset reflection on water
+        if (tod === 'afternoon') {
+            const reflGrad = ctx.createLinearGradient(w.x, wy, w.x + w.w, wy + 30);
+            reflGrad.addColorStop(0, 'rgba(255, 140, 50, 0.12)');
+            reflGrad.addColorStop(1, 'rgba(255, 100, 30, 0)');
+            ctx.fillStyle = reflGrad;
+            ctx.fillRect(w.x, wy - 5, w.w, 35);
+        }
+
         // Animated waves on surface
-        ctx.strokeStyle = 'rgba(120, 200, 255, 0.4)';
+        const waveColor = tod === 'day' ? 'rgba(140, 210, 255, 0.45)' :
+                          tod === 'afternoon' ? 'rgba(180, 160, 140, 0.35)' :
+                          'rgba(120, 200, 255, 0.4)';
+        ctx.strokeStyle = waveColor;
         ctx.lineWidth = 1.5;
         for (let i = 0; i < 3; i++) {
             ctx.beginPath();
             for (let wx = w.x; wx <= w.x + w.w; wx += 3) {
-                const waveY = wy - 5 + i * 8 + Math.sin(wx * 0.08 + gameTime * 0.05 + i * 2) * 2;
+                const waveY = wy - 5 + i * 8 + Math.sin(wx * 0.08 + gameTime * 0.05 + i * 2) * 2.5;
                 if (wx === w.x) ctx.moveTo(wx, waveY);
                 else ctx.lineTo(wx, waveY);
             }
@@ -922,12 +1238,13 @@ function draw() {
         }
 
         // Surface shimmer
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        const shimmerAlpha = tod === 'day' ? 0.14 : 0.08;
+        ctx.fillStyle = `rgba(255,255,255,${shimmerAlpha})`;
         for (let i = 0; i < 4; i++) {
             const sx = w.x + w.w * (0.15 + i * 0.22) + Math.sin(gameTime * 0.03 + i) * 5;
             const sy = wy - 3 + Math.sin(gameTime * 0.04 + i * 1.5) * 2;
             ctx.beginPath();
-            ctx.ellipse(sx, sy, 6, 2, 0, 0, Math.PI * 2);
+            ctx.ellipse(sx, sy, 6 + Math.sin(gameTime * 0.02 + i) * 2, 2, 0, 0, Math.PI * 2);
             ctx.fill();
         }
     });
@@ -937,19 +1254,34 @@ function draw() {
         const sy = getGroundY(s.x + s.w / 2) || baseY;
         // Sand base
         const sandGrad = ctx.createLinearGradient(s.x, sy - 4, s.x, sy + 5);
-        sandGrad.addColorStop(0, '#e8cb7a');
-        sandGrad.addColorStop(1, '#c4a55a');
+        if (tod === 'day') {
+            sandGrad.addColorStop(0, '#f0d88a');
+            sandGrad.addColorStop(1, '#d4b868');
+        } else if (tod === 'afternoon') {
+            sandGrad.addColorStop(0, '#d4b070');
+            sandGrad.addColorStop(1, '#b89050');
+        } else {
+            sandGrad.addColorStop(0, '#b8a060');
+            sandGrad.addColorStop(1, '#9a8048');
+        }
         ctx.fillStyle = sandGrad;
         ctx.fillRect(s.x, sy - 4, s.w, 8);
         // Sand texture dots
         ctx.fillStyle = 'rgba(160, 130, 50, 0.4)';
-        for (let i = 0; i < 8; i++) {
-            const dx = s.x + 5 + (i * (s.w - 10) / 8) + Math.sin(i * 2.3) * 3;
-            const dy = sy - 1 + Math.sin(i * 1.7) * 2;
+        for (let i = 0; i < 12; i++) {
+            const dx = s.x + 4 + (i * (s.w - 8) / 12) + Math.sin(i * 2.3) * 3;
+            const dy = sy - 2 + Math.sin(i * 1.7) * 2.5;
             ctx.beginPath();
-            ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+            ctx.arc(dx, dy, 1 + (i % 3) * 0.5, 0, Math.PI * 2);
             ctx.fill();
         }
+        // Sand edge highlight
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(s.x, sy - 4);
+        ctx.lineTo(s.x + s.w, sy - 4);
+        ctx.stroke();
     });
 
     // --- Hole/flag ---
@@ -1127,6 +1459,19 @@ function draw() {
     ctx.globalAlpha = 1;
 
     ctx.restore();
+
+    // Ambient lighting overlay (after camera restore so it covers the full canvas)
+    if (theme.ambientTint !== 'none') {
+        ctx.fillStyle = theme.ambientTint;
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    // Vignette effect
+    const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.75);
+    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vigGrad.addColorStop(1, tod === 'night' ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.1)');
+    ctx.fillStyle = vigGrad;
+    ctx.fillRect(0, 0, W, H);
 }
 
 function drawPlayer() {
@@ -1365,6 +1710,15 @@ function onHoleSunk() {
     const diff = strokes - par;
     scores.push(strokes);
 
+    let earned = 0;
+    if (strokes === 1) earned = 5;
+    else if (diff <= -2) earned = 4;
+    else if (diff === -1) earned = 3;
+    else if (diff === 0) earned = 2;
+    else if (diff === 1) earned = 1;
+    coins += earned;
+    saveProgress();
+
     let msg;
     if (strokes === 1) msg = 'HOLE IN ONE!';
     else if (diff <= -2) msg = 'Eagle!';
@@ -1376,7 +1730,8 @@ function onHoleSunk() {
 
     document.getElementById('holeMsg').textContent = msg;
     document.getElementById('holeSummary').textContent =
-        `Hole ${currentHole + 1}: ${strokes} stroke${strokes !== 1 ? 's' : ''} (Par ${par})`;
+        `Hole ${currentHole + 1}: ${strokes} stroke${strokes !== 1 ? 's' : ''} (Par ${par})` +
+        (earned > 0 ? ` — +${earned} coins!` : '');
 
     const btn = document.getElementById('nextBtn');
     btn.textContent = currentHole >= levels.length - 1 ? 'See Results' : 'Next Hole';
