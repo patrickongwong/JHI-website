@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>JHI Mini Golf</title>
+    <link rel="icon" type="image/png" href="../assets/wheel.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #1a472a;
+            font-family: 'Georgia', serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: min(600px, 95vw);
+            padding: 10px 0;
+        }
+
+        .game-title {
+            font-size: 1.2rem;
+            color: #c9a84c;
+            letter-spacing: 2px;
+        }
+
+        .game-info {
+            display: flex;
+            gap: 24px;
+            font-size: 0.9rem;
+        }
+
+        .game-info span {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .game-info strong {
+            color: #c9a84c;
+        }
+
+        #gameCanvas {
+            border-radius: 8px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .game-footer {
+            width: min(600px, 95vw);
+            padding: 12px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .power-bar-container {
+            width: 150px;
+            height: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .power-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4ade80, #c9a84c, #ef4444);
+            border-radius: 5px;
+            transition: width 0.05s;
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+        }
+
+        .overlay.hidden { display: none; }
+
+        .overlay h2 {
+            font-size: 2rem;
+            color: #c9a84c;
+            margin-bottom: 8px;
+        }
+
+        .overlay p {
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 24px;
+            font-size: 1rem;
+        }
+
+        .overlay button {
+            padding: 12px 36px;
+            background: #c9a84c;
+            color: #1a472a;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: Georgia, serif;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .overlay button:hover {
+            background: #e0c872;
+        }
+
+        .scorecard {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+            gap: 4px;
+            width: min(400px, 80vw);
+        }
+
+        .scorecard div {
+            text-align: center;
+            padding: 6px 4px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .scorecard .hole-label { color: rgba(255,255,255,0.5); }
+        .scorecard .hole-score { color: #c9a84c; font-weight: 700; }
+    </style>
+</head>
+<body>
+
+<div class="game-header">
+    <div class="game-title">JHI MINI GOLF</div>
+    <div class="game-info">
+        <span>Hole <strong id="holeNum">1</strong>/9</span>
+        <span>Par <strong id="parNum">3</strong></span>
+        <span>Strokes <strong id="strokeNum">0</strong></span>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<div class="game-footer">
+    <div class="power-bar-container">
+        <div class="power-bar" id="powerBar"></div>
+    </div>
+    <div class="hint" id="hint">Click and drag to aim, release to shoot</div>
+</div>
+
+<!-- Hole complete overlay -->
+<div class="overlay hidden" id="holeOverlay">
+    <h2 id="holeMessage">Nice!</h2>
+    <p id="holeScore"></p>
+    <button id="nextHoleBtn">Next Hole</button>
+</div>
+
+<!-- Game complete overlay -->
+<div class="overlay hidden" id="gameOverlay">
+    <h2>Round Complete!</h2>
+    <p id="totalScore"></p>
+    <div class="scorecard" id="scorecard"></div>
+    <br>
+    <button id="restartBtn">Play Again</button>
+</div>
+
+<script>
+// ==================== CANVAS SETUP ====================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    const maxW = Math.min(600, window.innerWidth * 0.95);
+    const maxH = Math.min(500, window.innerHeight * 0.65);
+    canvas.width = maxW;
+    canvas.height = maxH;
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); drawCourse(); });
+
+// ==================== COURSE DEFINITIONS ====================
+// Each hole: { ball, hole, par, walls, obstacles, water }
+// Coordinates are fractions of canvas size (0-1)
+
+const courses = [
+    { // Hole 1 — Straight shot
+        par: 2,
+        ball: { x: 0.5, y: 0.85 },
+        hole: { x: 0.5, y: 0.15 },
+        walls: [],
+        obstacles: [],
+        water: []
+    },
+    { // Hole 2 — Dogleg right
+        par: 3,
+        ball: { x: 0.2, y: 0.85 },
+        hole: { x: 0.8, y: 0.15 },
+        walls: [
+            { x1: 0.0, y1: 0.45, x2: 0.65, y2: 0.45 }
+        ],
+        obstacles: [],
+        water: []
+    },
+    { // Hole 3 — Channel
+        par: 3,
+        ball: { x: 0.5, y: 0.85 },
+        hole: { x: 0.5, y: 0.12 },
+        walls: [
+            { x1: 0.35, y1: 0.25, x2: 0.35, y2: 0.7 },
+            { x1: 0.65, y1: 0.25, x2: 0.65, y2: 0.7 }
+        ],
+        obstacles: [],
+        water: []
+    },
+    { // Hole 4 — Water hazard
+        par: 3,
+        ball: { x: 0.5, y: 0.85 },
+        hole: { x: 0.5, y: 0.12 },
+        walls: [],
+        obstacles: [],
+        water: [{ x: 0.25, y: 0.4, w: 0.5, h: 0.15 }]
+    },
+    { // Hole 5 — Zigzag
+        par: 4,
+        ball: { x: 0.15, y: 0.85 },
+        hole: { x: 0.85, y: 0.12 },
+        walls: [
+            { x1: 0.35, y1: 0.0, x2: 0.35, y2: 0.6 },
+            { x1: 0.65, y1: 0.4, x2: 0.65, y2: 1.0 }
+        ],
+        obstacles: [],
+        water: []
+    },
+    { // Hole 6 — Obstacles
+        par: 3,
+        ball: { x: 0.5, y: 0.85 },
+        hole: { x: 0.5, y: 0.12 },
+        walls: [],
+        obstacles: [
+            { x: 0.3, y: 0.5, r: 0.04 },
+            { x: 0.7, y: 0.5, r: 0.04 },
+            { x: 0.5, y: 0.35, r: 0.04 }
+        ],
+        water: []
+    },
+    { // Hole 7 — Tight corridor with bump
+        par: 4,
+        ball: { x: 0.5, y: 0.88 },
+        hole: { x: 0.5, y: 0.1 },
+        walls: [
+            { x1: 0.3, y1: 0.2, x2: 0.3, y2: 0.8 },
+            { x1: 0.7, y1: 0.2, x2: 0.7, y2: 0.8 }
+        ],
+        obstacles: [
+            { x: 0.5, y: 0.55, r: 0.05 }
+        ],
+        water: []
+    },
+    { // Hole 8 — Island green
+        par: 3,
+        ball: { x: 0.5, y: 0.85 },
+        hole: { x: 0.5, y: 0.2 },
+        walls: [],
+        obstacles: [],
+        water: [
+            { x: 0.15, y: 0.05, w: 0.7, h: 0.35 }
+        ]
+    },
+    { // Hole 9 — The Gauntlet
+        par: 5,
+        ball: { x: 0.1, y: 0.9 },
+        hole: { x: 0.9, y: 0.1 },
+        walls: [
+            { x1: 0.3, y1: 0.0, x2: 0.3, y2: 0.55 },
+            { x1: 0.5, y1: 0.45, x2: 0.5, y2: 1.0 },
+            { x1: 0.7, y1: 0.0, x2: 0.7, y2: 0.55 }
+        ],
+        obstacles: [
+            { x: 0.15, y: 0.4, r: 0.035 },
+            { x: 0.6, y: 0.25, r: 0.035 }
+        ],
+        water: []
+    }
+];
+
+// ==================== GAME STATE ====================
+let currentHole = 0;
+let strokes = 0;
+let scores = [];
+let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 6 };
+let holePos = { x: 0, y: 0, r: 10 };
+let dragging = false;
+let dragStart = { x: 0, y: 0 };
+let dragEnd = { x: 0, y: 0 };
+let ballMoving = false;
+let sunk = false;
+
+const FRICTION = 0.985;
+const MIN_SPEED = 0.15;
+const MAX_POWER = 18;
+const WALL_BOUNCE = 0.7;
+const BORDER_BOUNCE = 0.75;
+
+// ==================== INIT HOLE ====================
+function initHole() {
+    const course = courses[currentHole];
+    ball.x = course.ball.x * canvas.width;
+    ball.y = course.ball.y * canvas.height;
+    ball.vx = 0;
+    ball.vy = 0;
+    holePos.x = course.hole.x * canvas.width;
+    holePos.y = course.hole.y * canvas.height;
+    strokes = 0;
+    sunk = false;
+    ballMoving = false;
+
+    document.getElementById('holeNum').textContent = currentHole + 1;
+    document.getElementById('parNum').textContent = course.par;
+    document.getElementById('strokeNum').textContent = 0;
+    document.getElementById('hint').textContent = 'Click and drag to aim, release to shoot';
+
+    drawCourse();
+}
+
+// ==================== DRAWING ====================
+function drawCourse() {
+    const W = canvas.width;
+    const H = canvas.height;
+    const course = courses[currentHole];
+
+    // Green background with subtle texture
+    ctx.fillStyle = '#2d6a4f';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grass texture lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.015)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < H; i += 4) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(W, i);
+        ctx.stroke();
+    }
+
+    // Fairway (lighter area around path)
+    ctx.fillStyle = 'rgba(64, 145, 108, 0.3)';
+    ctx.fillRect(W * 0.05, H * 0.05, W * 0.9, H * 0.9);
+
+    // Water hazards
+    course.water.forEach(w => {
+        const wx = w.x * W, wy = w.y * H, ww = w.w * W, wh = w.h * H;
+        ctx.fillStyle = 'rgba(30, 100, 180, 0.5)';
+        ctx.fillRect(wx, wy, ww, wh);
+        // Ripple effect
+        ctx.strokeStyle = 'rgba(100, 180, 255, 0.3)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.ellipse(wx + ww/2, wy + wh/2 + i*8, ww * 0.3 - i*10, 6, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    });
+
+    // Walls
+    ctx.strokeStyle = '#8B6914';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    course.walls.forEach(w => {
+        ctx.beginPath();
+        ctx.moveTo(w.x1 * W, w.y1 * H);
+        ctx.lineTo(w.x2 * W, w.y2 * H);
+        ctx.stroke();
+    });
+    // Wall shadow
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 8;
+    course.walls.forEach(w => {
+        ctx.beginPath();
+        ctx.moveTo(w.x1 * W + 2, w.y1 * H + 2);
+        ctx.lineTo(w.x2 * W + 2, w.y2 * H + 2);
+        ctx.stroke();
+    });
+    // Re-draw walls on top of shadow
+    ctx.strokeStyle = '#8B6914';
+    ctx.lineWidth = 6;
+    course.walls.forEach(w => {
+        ctx.beginPath();
+        ctx.moveTo(w.x1 * W, w.y1 * H);
+        ctx.lineTo(w.x2 * W, w.y2 * H);
+        ctx.stroke();
+    });
+
+    // Obstacles (circular bumpers)
+    course.obstacles.forEach(o => {
+        const ox = o.x * W, oy = o.y * H, or2 = o.r * W;
+        ctx.beginPath();
+        ctx.arc(ox, oy, or2, 0, Math.PI * 2);
+        ctx.fillStyle = '#5a3e1b';
+        ctx.fill();
+        ctx.strokeStyle = '#8B6914';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    });
+
+    // Hole
+    ctx.beginPath();
+    ctx.arc(holePos.x, holePos.y, holePos.r + 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(64, 145, 108, 0.8)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(holePos.x, holePos.y, holePos.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#111';
+    ctx.fill();
+    // Flag
+    ctx.beginPath();
+    ctx.moveTo(holePos.x, holePos.y);
+    ctx.lineTo(holePos.x, holePos.y - 30);
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(holePos.x, holePos.y - 30);
+    ctx.lineTo(holePos.x + 16, holePos.y - 24);
+    ctx.lineTo(holePos.x, holePos.y - 18);
+    ctx.fillStyle = '#c9a84c';
+    ctx.fill();
+
+    // Ball shadow
+    if (!sunk) {
+        ctx.beginPath();
+        ctx.ellipse(ball.x + 2, ball.y + 3, ball.r, ball.r * 0.5, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fill();
+
+        // Ball
+        const grad = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 1, ball.x, ball.y, ball.r);
+        grad.addColorStop(0, '#fff');
+        grad.addColorStop(0.7, '#e8e8e8');
+        grad.addColorStop(1, '#c0c0c0');
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+    }
+
+    // Aim line
+    if (dragging && !ballMoving) {
+        const dx = dragStart.x - dragEnd.x;
+        const dy = dragStart.y - dragEnd.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const power = Math.min(dist / 3, MAX_POWER);
+        const angle = Math.atan2(dy, dx);
+
+        // Direction line
+        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y);
+        ctx.lineTo(ball.x + Math.cos(angle) * power * 6, ball.y + Math.sin(angle) * power * 6);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Power indicator
+        document.getElementById('powerBar').style.width = (power / MAX_POWER * 100) + '%';
+    } else {
+        document.getElementById('powerBar').style.width = '0%';
+    }
+}
+
+// ==================== PHYSICS ====================
+function update() {
+    if (!ballMoving || sunk) return;
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const course = courses[currentHole];
+
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Friction
+    ball.vx *= FRICTION;
+    ball.vy *= FRICTION;
+
+    // Border collisions
+    if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx = Math.abs(ball.vx) * BORDER_BOUNCE; }
+    if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.vx = -Math.abs(ball.vx) * BORDER_BOUNCE; }
+    if (ball.y - ball.r < 0) { ball.y = ball.r; ball.vy = Math.abs(ball.vy) * BORDER_BOUNCE; }
+    if (ball.y + ball.r > H) { ball.y = H - ball.r; ball.vy = -Math.abs(ball.vy) * BORDER_BOUNCE; }
+
+    // Wall collisions
+    course.walls.forEach(w => {
+        const wx1 = w.x1 * W, wy1 = w.y1 * H;
+        const wx2 = w.x2 * W, wy2 = w.y2 * H;
+        const wallR = 3 + ball.r; // wall thickness + ball radius
+
+        // Project ball onto wall segment
+        const dx = wx2 - wx1, dy = wy2 - wy1;
+        const len2 = dx * dx + dy * dy;
+        let t = ((ball.x - wx1) * dx + (ball.y - wy1) * dy) / len2;
+        t = Math.max(0, Math.min(1, t));
+        const closestX = wx1 + t * dx;
+        const closestY = wy1 + t * dy;
+        const distX = ball.x - closestX;
+        const distY = ball.y - closestY;
+        const dist = Math.sqrt(distX * distX + distY * distY);
+
+        if (dist < wallR) {
+            // Push ball out and reflect velocity
+            const nx = distX / dist;
+            const ny = distY / dist;
+            ball.x = closestX + nx * wallR;
+            ball.y = closestY + ny * wallR;
+            const dot = ball.vx * nx + ball.vy * ny;
+            ball.vx = (ball.vx - 2 * dot * nx) * WALL_BOUNCE;
+            ball.vy = (ball.vy - 2 * dot * ny) * WALL_BOUNCE;
+        }
+    });
+
+    // Obstacle collisions
+    course.obstacles.forEach(o => {
+        const ox = o.x * W, oy = o.y * H, or2 = o.r * W + ball.r;
+        const dx = ball.x - ox, dy = ball.y - oy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < or2) {
+            const nx = dx / dist, ny = dy / dist;
+            ball.x = ox + nx * or2;
+            ball.y = oy + ny * or2;
+            const dot = ball.vx * nx + ball.vy * ny;
+            ball.vx = (ball.vx - 2 * dot * nx) * WALL_BOUNCE;
+            ball.vy = (ball.vy - 2 * dot * ny) * WALL_BOUNCE;
+        }
+    });
+
+    // Water hazard — reset ball
+    course.water.forEach(w => {
+        const wx = w.x * W, wy = w.y * H, ww = w.w * W, wh = w.h * H;
+        if (ball.x > wx && ball.x < wx + ww && ball.y > wy && ball.y < wy + wh) {
+            // Check if ball is over the hole (island green)
+            const dxH = ball.x - holePos.x, dyH = ball.y - holePos.y;
+            const distH = Math.sqrt(dxH * dxH + dyH * dyH);
+            if (distH < holePos.r + 20) return; // near hole, allow
+
+            ball.x = course.ball.x * W;
+            ball.y = course.ball.y * H;
+            ball.vx = 0;
+            ball.vy = 0;
+            ballMoving = false;
+            strokes++; // penalty stroke
+            document.getElementById('strokeNum').textContent = strokes;
+            document.getElementById('hint').textContent = 'Water! +1 penalty stroke';
+        }
+    });
+
+    // Check if ball is in hole
+    const dxH = ball.x - holePos.x;
+    const dyH = ball.y - holePos.y;
+    const distH = Math.sqrt(dxH * dxH + dyH * dyH);
+    const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+
+    if (distH < holePos.r && speed < 8) {
+        sunk = true;
+        ballMoving = false;
+        ball.x = holePos.x;
+        ball.y = holePos.y;
+        onHoleComplete();
+        return;
+    }
+
+    // Gravity pull near hole
+    if (distH < holePos.r + 15 && speed < 5) {
+        ball.vx += (holePos.x - ball.x) * 0.005;
+        ball.vy += (holePos.y - ball.y) * 0.005;
+    }
+
+    // Stop if slow enough
+    if (speed < MIN_SPEED) {
+        ball.vx = 0;
+        ball.vy = 0;
+        ballMoving = false;
+        document.getElementById('hint').textContent = 'Click and drag to aim';
+    }
+}
+
+// ==================== HOLE COMPLETE ====================
+function onHoleComplete() {
+    const course = courses[currentHole];
+    const diff = strokes - course.par;
+    scores.push(strokes);
+
+    let msg;
+    if (strokes === 1) msg = 'HOLE IN ONE!';
+    else if (diff <= -2) msg = 'Eagle!';
+    else if (diff === -1) msg = 'Birdie!';
+    else if (diff === 0) msg = 'Par';
+    else if (diff === 1) msg = 'Bogey';
+    else if (diff === 2) msg = 'Double Bogey';
+    else msg = '+' + diff;
+
+    document.getElementById('holeMessage').textContent = msg;
+    document.getElementById('holeScore').textContent =
+        `Hole ${currentHole + 1}: ${strokes} stroke${strokes !== 1 ? 's' : ''} (Par ${course.par})`;
+
+    if (currentHole >= courses.length - 1) {
+        document.getElementById('nextHoleBtn').textContent = 'See Results';
+    } else {
+        document.getElementById('nextHoleBtn').textContent = 'Next Hole';
+    }
+
+    setTimeout(() => {
+        document.getElementById('holeOverlay').classList.remove('hidden');
+    }, 500);
+}
+
+function showFinalScore() {
+    let totalStrokes = scores.reduce((a, b) => a + b, 0);
+    let totalPar = courses.reduce((a, c) => a + c.par, 0);
+    let diff = totalStrokes - totalPar;
+    let diffStr = diff === 0 ? 'Even' : (diff > 0 ? '+' + diff : diff);
+
+    document.getElementById('totalScore').textContent =
+        `Total: ${totalStrokes} (${diffStr} | Par ${totalPar})`;
+
+    const sc = document.getElementById('scorecard');
+    sc.innerHTML = '';
+    scores.forEach((s, i) => {
+        const label = document.createElement('div');
+        label.className = 'hole-label';
+        label.textContent = 'H' + (i + 1);
+        sc.appendChild(label);
+    });
+    scores.forEach((s, i) => {
+        const score = document.createElement('div');
+        score.className = 'hole-score';
+        score.textContent = s;
+        sc.appendChild(score);
+    });
+
+    document.getElementById('gameOverlay').classList.remove('hidden');
+}
+
+// ==================== INPUT ====================
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+    };
+}
+
+function onStart(e) {
+    e.preventDefault();
+    if (ballMoving || sunk) return;
+    const pos = getPos(e);
+    // Must click near ball
+    const dx = pos.x - ball.x, dy = pos.y - ball.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 50) return;
+    dragging = true;
+    dragStart = { x: pos.x, y: pos.y };
+    dragEnd = { x: pos.x, y: pos.y };
+}
+
+function onMove(e) {
+    e.preventDefault();
+    if (!dragging) return;
+    dragEnd = getPos(e);
+    drawCourse();
+}
+
+function onEnd(e) {
+    e.preventDefault();
+    if (!dragging) return;
+    dragging = false;
+
+    const dx = dragStart.x - dragEnd.x;
+    const dy = dragStart.y - dragEnd.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 5) { drawCourse(); return; } // too small, ignore
+
+    const power = Math.min(dist / 3, MAX_POWER);
+    const angle = Math.atan2(dy, dx);
+    ball.vx = Math.cos(angle) * power;
+    ball.vy = Math.sin(angle) * power;
+    ballMoving = true;
+    strokes++;
+    document.getElementById('strokeNum').textContent = strokes;
+    document.getElementById('hint').textContent = '';
+}
+
+canvas.addEventListener('mousedown', onStart);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onEnd);
+canvas.addEventListener('touchstart', onStart, { passive: false });
+canvas.addEventListener('touchmove', onMove, { passive: false });
+canvas.addEventListener('touchend', onEnd, { passive: false });
+
+// ==================== BUTTONS ====================
+document.getElementById('nextHoleBtn').addEventListener('click', () => {
+    document.getElementById('holeOverlay').classList.add('hidden');
+    if (currentHole >= courses.length - 1) {
+        showFinalScore();
+    } else {
+        currentHole++;
+        initHole();
+    }
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+    document.getElementById('gameOverlay').classList.add('hidden');
+    currentHole = 0;
+    scores = [];
+    initHole();
+});
+
+// ==================== GAME LOOP ====================
+function gameLoop() {
+    update();
+    drawCourse();
+    requestAnimationFrame(gameLoop);
+}
+
+initHole();
+gameLoop();
+</script>
+</body>
+</html>
