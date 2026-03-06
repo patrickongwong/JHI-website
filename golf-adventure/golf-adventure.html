@@ -1561,12 +1561,6 @@ function draw() {
     ctx.quadraticCurveTo(hole.x + 14 - flagWave, hole.y - 47, hole.x, hole.y - 40);
     ctx.fill();
 
-    // "JHI" on flag
-    ctx.fillStyle = '#1a472a';
-    ctx.font = `bold ${7 * S}px Georgia`;
-    ctx.textAlign = 'center';
-    ctx.fillText('JHI', hole.x + 12, hole.y - 47);
-    ctx.textAlign = 'left';
 
     // Hole (cup)
     ctx.fillStyle = '#0a0a0a';
@@ -2314,6 +2308,132 @@ function tryBuy() {
     }
 }
 
+function drawShopkeeper(x, baseY) {
+    const u = 50 / 56; // scale factor
+    const y = baseY - 50;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(-1, 1); // face left (toward player)
+
+    const headCenter = 8 * u;
+    const neckY = 16 * u;
+    const torsoTop = neckY;
+    const torsoBot = 38 * u;
+    const footY = 50;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(0, footY, 14 * u, 4 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs (dark slacks)
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#2a2a3a';
+    ctx.lineWidth = 5 * u;
+    ctx.beginPath(); ctx.moveTo(-4 * u, torsoBot); ctx.lineTo(-5 * u, footY - 3 * u); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(4 * u, torsoBot); ctx.lineTo(5 * u, footY - 3 * u); ctx.stroke();
+
+    // Shoes
+    ctx.fillStyle = '#3a2a1a';
+    ctx.beginPath(); ctx.roundRect(-8 * u, footY - 4 * u, 8 * u, 5 * u, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(2 * u, footY - 4 * u, 8 * u, 5 * u, 2); ctx.fill();
+
+    // Body (green vest over white shirt)
+    ctx.fillStyle = '#f0ead8';
+    ctx.beginPath();
+    ctx.moveTo(-9 * u, torsoTop); ctx.lineTo(9 * u, torsoTop);
+    ctx.lineTo(8 * u, torsoBot); ctx.lineTo(-8 * u, torsoBot);
+    ctx.closePath(); ctx.fill();
+    // Vest
+    ctx.fillStyle = '#2d6a4f';
+    ctx.beginPath();
+    ctx.moveTo(-9 * u, torsoTop + 1); ctx.lineTo(-3 * u, torsoTop + 1);
+    ctx.lineTo(-3 * u, torsoBot); ctx.lineTo(-9 * u, torsoBot);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(9 * u, torsoTop + 1); ctx.lineTo(3 * u, torsoTop + 1);
+    ctx.lineTo(3 * u, torsoBot); ctx.lineTo(9 * u, torsoBot);
+    ctx.closePath(); ctx.fill();
+
+    // Belt
+    ctx.fillStyle = '#5a4a30';
+    ctx.fillRect(-8 * u, torsoBot - 2 * u, 16 * u, 3 * u);
+    ctx.fillStyle = '#c9a84c';
+    ctx.fillRect(-1.5 * u, torsoBot - 2 * u, 3 * u, 3 * u);
+
+    // Arms
+    ctx.strokeStyle = '#2d6a4f';
+    ctx.lineWidth = 5 * u;
+    ctx.beginPath(); ctx.moveTo(-9 * u, torsoTop + 2 * u); ctx.lineTo(-12 * u, torsoTop + 8 * u); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(9 * u, torsoTop + 2 * u); ctx.lineTo(12 * u, torsoTop + 8 * u); ctx.stroke();
+    ctx.strokeStyle = '#c4956a';
+    ctx.lineWidth = 3.5 * u;
+    ctx.beginPath(); ctx.moveTo(-12 * u, torsoTop + 8 * u); ctx.lineTo(-13 * u, torsoBot - 2 * u); ctx.stroke();
+    // Right hand waving
+    const waveAngle = Math.sin(gameTime * 0.05) * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(12 * u, torsoTop + 8 * u);
+    ctx.lineTo(12 * u + Math.cos(-1 + waveAngle) * 12 * u, torsoTop + 8 * u + Math.sin(-1 + waveAngle) * 12 * u);
+    ctx.stroke();
+
+    // Head
+    ctx.fillStyle = '#c4956a';
+    ctx.beginPath();
+    ctx.ellipse(0, headCenter, 9 * u, 9.5 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears
+    ctx.fillStyle = '#b8876a';
+    ctx.beginPath(); ctx.ellipse(-9 * u, headCenter, 2 * u, 3 * u, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(9 * u, headCenter, 2 * u, 3 * u, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Visor/cap
+    ctx.fillStyle = '#1a472a';
+    ctx.beginPath();
+    ctx.ellipse(0, headCenter - 6 * u, 10 * u, 4 * u, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    // Cap brim
+    ctx.fillStyle = '#1a472a';
+    ctx.beginPath();
+    ctx.moveTo(-10 * u, headCenter - 6 * u);
+    ctx.lineTo(14 * u, headCenter - 5 * u);
+    ctx.lineTo(14 * u, headCenter - 3 * u);
+    ctx.lineTo(-10 * u, headCenter - 4 * u);
+    ctx.closePath();
+    ctx.fill();
+    // JHI logo on cap
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = `bold ${5 * u}px Georgia`;
+    ctx.textAlign = 'center';
+    ctx.fillText('JHI', 0, headCenter - 6 * u);
+
+    // Mustache
+    ctx.strokeStyle = '#5a3a1a';
+    ctx.lineWidth = 1.5 * u;
+    ctx.beginPath();
+    ctx.moveTo(-5 * u, headCenter + 2.5 * u);
+    ctx.quadraticCurveTo(-3 * u, headCenter + 4.5 * u, 0, headCenter + 3 * u);
+    ctx.quadraticCurveTo(3 * u, headCenter + 4.5 * u, 5 * u, headCenter + 2.5 * u);
+    ctx.stroke();
+
+    // Eyes
+    ctx.fillStyle = '#2a2a2a';
+    ctx.beginPath(); ctx.arc(-4 * u, headCenter - 0.5 * u, 1.2 * u, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4.5 * u, headCenter - 0.5 * u, 1.2 * u, 0, Math.PI * 2); ctx.fill();
+
+    // Smile
+    ctx.strokeStyle = '#8a5a3a';
+    ctx.lineWidth = 1 * u;
+    ctx.beginPath();
+    ctx.arc(0, headCenter + 4 * u, 3 * u, 0.1, Math.PI - 0.1);
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.restore();
+}
+
 function drawShop() {
     const W = canvas.width, H = canvas.height;
     const baseY = H - 80 * S;
@@ -2322,33 +2442,318 @@ function drawShop() {
     ctx.fillStyle = '#2a1a0a';
     ctx.fillRect(0, 0, W, H);
 
-    // Back wall
+    // Back wall with wainscoting
     const wallGrad = ctx.createLinearGradient(0, 0, 0, baseY);
-    wallGrad.addColorStop(0, '#3a2818');
+    wallGrad.addColorStop(0, '#4a3422');
+    wallGrad.addColorStop(0.6, '#3a2818');
     wallGrad.addColorStop(1, '#2a1a0a');
     ctx.fillStyle = wallGrad;
-    ctx.fillRect(0, 0, W, baseY);
+    ctx.fillRect(0, 0, W + 200, baseY);
 
-    // Wall shelves
-    ctx.fillStyle = '#4a3020';
-    for (let sy = 60; sy < baseY - 40; sy += 80) {
-        ctx.fillRect(0, sy, W + 200, 6);
+    // Wainscoting (lower wall paneling)
+    const wainscotTop = baseY - 70;
+    ctx.fillStyle = '#3a2515';
+    ctx.fillRect(0, wainscotTop, W + 200, 70);
+    // Panel trim
+    ctx.strokeStyle = '#5a4025';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(0, wainscotTop, W + 200, 70);
+    // Vertical panel lines
+    for (let px = 40; px < W + 200; px += 80) {
+        ctx.beginPath();
+        ctx.moveTo(px - cameraX % 80, wainscotTop + 5);
+        ctx.lineTo(px - cameraX % 80, baseY - 5);
+        ctx.stroke();
+    }
+    // Crown molding
+    ctx.fillStyle = '#6a5030';
+    ctx.fillRect(0, wainscotTop - 3, W + 200, 5);
+
+    // Wallpaper pattern (subtle diamond)
+    ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+    ctx.lineWidth = 0.5;
+    for (let wy = 15; wy < wainscotTop; wy += 30) {
+        for (let wx = -cameraX % 30; wx < W + 30; wx += 30) {
+            ctx.beginPath();
+            ctx.moveTo(wx, wy - 10); ctx.lineTo(wx + 10, wy);
+            ctx.lineTo(wx, wy + 10); ctx.lineTo(wx - 10, wy);
+            ctx.closePath(); ctx.stroke();
+        }
     }
 
-    // Wooden floor
-    ctx.fillStyle = '#5a3a1a';
-    ctx.fillRect(0, baseY, W, H - baseY);
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    // Wall shelves with items
+    ctx.fillStyle = '#5a3e25';
+    const shelfPositions = [65, 140];
+    shelfPositions.forEach(sy => {
+        // Shelf board
+        ctx.fillStyle = '#5a3e25';
+        ctx.fillRect(0, sy, W + 200, 6);
+        // Shelf bracket shadows
+        ctx.fillStyle = '#4a3020';
+        for (let bx = 60 - cameraX % 200; bx < W + 100; bx += 200) {
+            ctx.fillRect(bx, sy + 6, 4, 10);
+            ctx.fillRect(bx + 14, sy + 6, 4, 10);
+        }
+    });
+
+    // Shelf decorations (trophies, golf balls, books)
+    // Top shelf items
+    for (let dx = 30 - cameraX % 180; dx < W + 100; dx += 180) {
+        // Trophy
+        ctx.fillStyle = '#c9a84c';
+        ctx.fillRect(dx, shelfPositions[0] - 18, 6, 12);
+        ctx.fillRect(dx - 4, shelfPositions[0] - 6, 14, 5);
+        ctx.beginPath();
+        ctx.arc(dx + 3, shelfPositions[0] - 22, 6, 0, Math.PI * 2);
+        ctx.fill();
+        // Stack of golf balls
+        ctx.fillStyle = '#ddd';
+        ctx.beginPath(); ctx.arc(dx + 50, shelfPositions[0] - 5, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(dx + 59, shelfPositions[0] - 5, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(dx + 54.5, shelfPositions[0] - 12, 4, 0, Math.PI * 2); ctx.fill();
+        // Book
+        ctx.fillStyle = '#8b3a3a';
+        ctx.fillRect(dx + 90, shelfPositions[0] - 16, 8, 16);
+        ctx.fillStyle = '#3a5a8b';
+        ctx.fillRect(dx + 100, shelfPositions[0] - 20, 8, 20);
+        ctx.fillStyle = '#4a7a3a';
+        ctx.fillRect(dx + 110, shelfPositions[0] - 14, 6, 14);
+    }
+
+    // Bottom shelf items
+    for (let dx = 80 - cameraX % 200; dx < W + 100; dx += 200) {
+        // Golf bag
+        ctx.fillStyle = '#4a6a8a';
+        ctx.fillRect(dx, shelfPositions[1] - 28, 12, 28);
+        ctx.fillStyle = '#888';
+        ctx.fillRect(dx + 1, shelfPositions[1] - 34, 2, 10);
+        ctx.fillRect(dx + 5, shelfPositions[1] - 32, 2, 8);
+        ctx.fillRect(dx + 9, shelfPositions[1] - 36, 2, 12);
+        // Framed photo
+        ctx.strokeStyle = '#8a7040';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(dx + 55, shelfPositions[1] - 22, 18, 20);
+        ctx.fillStyle = '#2a4a2a';
+        ctx.fillRect(dx + 57, shelfPositions[1] - 20, 14, 16);
+        // Small flag in frame
+        ctx.fillStyle = '#c9a84c';
+        ctx.beginPath();
+        ctx.moveTo(dx + 64, shelfPositions[1] - 18);
+        ctx.lineTo(dx + 64, shelfPositions[1] - 10);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(dx + 64, shelfPositions[1] - 18);
+        ctx.lineTo(dx + 69, shelfPositions[1] - 16);
+        ctx.lineTo(dx + 64, shelfPositions[1] - 14);
+        ctx.fill();
+    }
+
+    // --- Windows ---
+    const windowPositions = [120, 520, 920];
+    windowPositions.forEach(wx => {
+        const winX = wx - cameraX * 0.05;
+        const winY = 45;
+        const winW = 70;
+        const winH = 80;
+
+        // Window frame (outer)
+        ctx.fillStyle = '#6a5030';
+        ctx.fillRect(winX - 5, winY - 5, winW + 10, winH + 10);
+
+        // Window glass - outdoor scene
+        const glassGrad = ctx.createLinearGradient(winX, winY, winX, winY + winH);
+        glassGrad.addColorStop(0, '#5a8ab8');
+        glassGrad.addColorStop(0.5, '#7ab0d8');
+        glassGrad.addColorStop(0.7, '#4a8a50');
+        glassGrad.addColorStop(1, '#3a7a40');
+        ctx.fillStyle = glassGrad;
+        ctx.fillRect(winX, winY, winW, winH);
+
+        // Clouds in window
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        const cloudX = winX + 15 + Math.sin(gameTime * 0.008 + wx) * 8;
+        ctx.beginPath();
+        ctx.ellipse(cloudX, winY + 18, 14, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(cloudX + 10, winY + 20, 8, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hills in window
+        ctx.fillStyle = 'rgba(45, 110, 55, 0.5)';
+        ctx.beginPath();
+        ctx.moveTo(winX, winY + winH * 0.65);
+        for (let i = 0; i <= winW; i += 3) {
+            ctx.lineTo(winX + i, winY + winH * 0.6 + Math.sin(i * 0.12 + wx * 0.05) * 6);
+        }
+        ctx.lineTo(winX + winW, winY + winH);
+        ctx.lineTo(winX, winY + winH);
+        ctx.closePath();
+        ctx.fill();
+
+        // Window cross-bar
+        ctx.strokeStyle = '#6a5030';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(winX + winW / 2, winY);
+        ctx.lineTo(winX + winW / 2, winY + winH);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(winX, winY + winH / 2);
+        ctx.lineTo(winX + winW, winY + winH / 2);
+        ctx.stroke();
+
+        // Glass sheen
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath();
+        ctx.moveTo(winX, winY);
+        ctx.lineTo(winX + winW * 0.4, winY);
+        ctx.lineTo(winX, winY + winH * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // Curtains
+        ctx.fillStyle = '#8a3030';
+        // Left curtain
+        ctx.beginPath();
+        ctx.moveTo(winX - 3, winY - 3);
+        ctx.quadraticCurveTo(winX + 8, winY + winH * 0.3, winX + 2, winY + winH + 3);
+        ctx.lineTo(winX - 5, winY + winH + 3);
+        ctx.lineTo(winX - 5, winY - 3);
+        ctx.closePath();
+        ctx.fill();
+        // Right curtain
+        ctx.beginPath();
+        ctx.moveTo(winX + winW + 3, winY - 3);
+        ctx.quadraticCurveTo(winX + winW - 8, winY + winH * 0.3, winX + winW - 2, winY + winH + 3);
+        ctx.lineTo(winX + winW + 5, winY + winH + 3);
+        ctx.lineTo(winX + winW + 5, winY - 3);
+        ctx.closePath();
+        ctx.fill();
+        // Curtain rod
+        ctx.strokeStyle = '#a08050';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(winX - 10, winY - 5);
+        ctx.lineTo(winX + winW + 10, winY - 5);
+        ctx.stroke();
+        // Rod finials
+        ctx.fillStyle = '#a08050';
+        ctx.beginPath(); ctx.arc(winX - 10, winY - 5, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(winX + winW + 10, winY - 5, 3, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // Ceiling light fixtures
+    for (let lx = 100; lx < W + 200; lx += 250) {
+        const lightX = lx - cameraX * 0.1;
+        // Light cone
+        const lightGrad = ctx.createRadialGradient(lightX, 10, 5, lightX, 50, 100);
+        lightGrad.addColorStop(0, 'rgba(255, 230, 160, 0.12)');
+        lightGrad.addColorStop(1, 'rgba(255, 230, 160, 0)');
+        ctx.fillStyle = lightGrad;
+        ctx.beginPath();
+        ctx.moveTo(lightX - 80, baseY);
+        ctx.lineTo(lightX - 10, 10);
+        ctx.lineTo(lightX + 10, 10);
+        ctx.lineTo(lightX + 80, baseY);
+        ctx.closePath();
+        ctx.fill();
+        // Fixture
+        ctx.fillStyle = '#8a7040';
+        ctx.fillRect(lightX - 8, 0, 16, 8);
+        ctx.fillStyle = '#f0e0a0';
+        ctx.beginPath();
+        ctx.arc(lightX, 12, 5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Wooden floor with planks
+    const floorGrad = ctx.createLinearGradient(0, baseY, 0, H);
+    floorGrad.addColorStop(0, '#6a4420');
+    floorGrad.addColorStop(0.1, '#5a3a1a');
+    floorGrad.addColorStop(1, '#4a3015');
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(0, baseY, W + 200, H - baseY);
+    // Floor plank lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
     ctx.lineWidth = 1;
-    for (let fx = -cameraX % 60; fx < W; fx += 60) {
+    for (let fx = -cameraX % 55; fx < W + 60; fx += 55) {
         ctx.beginPath();
         ctx.moveTo(fx, baseY);
         ctx.lineTo(fx, H);
         ctx.stroke();
     }
+    // Floor highlight at top
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(0, baseY, W + 200, 3);
+    // Floor wood grain
+    ctx.strokeStyle = 'rgba(80, 50, 20, 0.15)';
+    ctx.lineWidth = 0.5;
+    for (let fy = baseY + 8; fy < H; fy += 12) {
+        ctx.beginPath();
+        for (let fx = 0; fx < W + 60; fx += 3) {
+            const gy = fy + Math.sin(fx * 0.15 + fy) * 1.5;
+            if (fx === 0) ctx.moveTo(fx, gy);
+            else ctx.lineTo(fx, gy);
+        }
+        ctx.stroke();
+    }
+
+    // Welcome mat near entrance
+    ctx.fillStyle = '#6a3a2a';
+    ctx.fillRect(50 - cameraX, baseY + 2, 80, H - baseY - 4);
+    ctx.strokeStyle = '#c9a84c';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(53 - cameraX, baseY + 4, 74, H - baseY - 8);
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = '8px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('WELCOME', 90 - cameraX, baseY + (H - baseY) / 2 + 3);
+    ctx.textAlign = 'left';
 
     ctx.save();
     ctx.translate(-cameraX, 0);
+
+    // --- Shopkeeper ---
+    drawShopkeeper(950, baseY);
+
+    // Shopkeeper counter
+    ctx.fillStyle = '#5a3e25';
+    ctx.fillRect(900, baseY - 30, 80, 30);
+    ctx.fillStyle = '#6a4e30';
+    ctx.fillRect(898, baseY - 33, 84, 5);
+    // Cash register on counter
+    ctx.fillStyle = '#666';
+    ctx.fillRect(920, baseY - 48, 20, 15);
+    ctx.fillStyle = '#888';
+    ctx.fillRect(918, baseY - 50, 24, 4);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(923, baseY - 46, 14, 7);
+    // Small display number
+    ctx.fillStyle = '#1a3a1a';
+    ctx.fillRect(924, baseY - 45, 12, 5);
+
+    // Speech bubble from shopkeeper
+    const nearShopkeeper = Math.abs(player.x - 950) < 80;
+    if (nearShopkeeper) {
+        const bubbleX = 940, bubbleY = baseY - 95;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath();
+        ctx.roundRect(bubbleX - 55, bubbleY - 14, 110, 24, 8);
+        ctx.fill();
+        // Bubble tail
+        ctx.beginPath();
+        ctx.moveTo(bubbleX + 10, bubbleY + 10);
+        ctx.lineTo(bubbleX + 15, bubbleY + 20);
+        ctx.lineTo(bubbleX + 22, bubbleY + 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#2a1a0a';
+        ctx.font = '11px Georgia';
+        ctx.textAlign = 'center';
+        ctx.fillText('Welcome! Browse around!', bubbleX, bubbleY + 2);
+        ctx.textAlign = 'left';
+    }
 
     // Pedestals with items
     shopPedestals.forEach(ped => {
@@ -2357,14 +2762,34 @@ function drawShop() {
         const nextTier = tier + 1;
         const isMaxed = nextTier >= prices.length;
 
-        // Pedestal base
+        // Glass display case
+        ctx.fillStyle = '#5a4a38';
+        ctx.fillRect(ped.x - 24, baseY - 4, 48, 4);
         ctx.fillStyle = '#6a5a4a';
         ctx.fillRect(ped.x - 20, baseY - 40, 40, 40);
         ctx.fillStyle = '#7a6a5a';
         ctx.fillRect(ped.x - 24, baseY - 44, 48, 6);
+        // Pedestal side highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fillRect(ped.x - 20, baseY - 40, 4, 40);
+
+        // Spotlight glow on item
+        const spotGrad = ctx.createRadialGradient(ped.x, baseY - 80, 5, ped.x, baseY - 60, 40);
+        spotGrad.addColorStop(0, 'rgba(255, 230, 160, 0.15)');
+        spotGrad.addColorStop(1, 'rgba(255, 230, 160, 0)');
+        ctx.fillStyle = spotGrad;
+        ctx.beginPath();
+        ctx.arc(ped.x, baseY - 60, 40, 0, Math.PI * 2);
+        ctx.fill();
 
         // Floating item with bob
         const bobY = baseY - 70 + Math.sin(gameTime * 0.04 + ped.x * 0.01) * 4;
+
+        // Item glow
+        ctx.fillStyle = 'rgba(201, 168, 76, 0.1)';
+        ctx.beginPath();
+        ctx.arc(ped.x, bobY, 18, 0, Math.PI * 2);
+        ctx.fill();
 
         if (ped.type === 'club') {
             const showTier = Math.min(nextTier, CLUB_TIERS.length - 1);
@@ -2423,20 +2848,39 @@ function drawShop() {
         ctx.textAlign = 'left';
     });
 
-    // Continue sign at right
+    // Continue door at right
+    // Door frame
+    ctx.fillStyle = '#5a4025';
+    ctx.fillRect(1010, baseY - 65, 44, 65);
+    ctx.fillStyle = '#3a2815';
+    ctx.fillRect(1014, baseY - 61, 36, 61);
+    // Door handle
     ctx.fillStyle = '#c9a84c';
-    ctx.font = 'bold 16px Georgia';
+    ctx.beginPath();
+    ctx.arc(1042, baseY - 30, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // EXIT sign above door
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = 'bold 10px Georgia';
     ctx.textAlign = 'center';
-    ctx.fillText('Continue \u2192', 1030, baseY - 20);
-    ctx.strokeStyle = '#c9a84c';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(990, baseY - 35, 80, 22);
+    ctx.fillText('EXIT \u2192', 1032, baseY - 70);
+    // Arrow glow
+    const exitPulse = 0.4 + 0.3 * Math.sin(gameTime * 0.06);
+    ctx.fillStyle = `rgba(201, 168, 76, ${exitPulse})`;
+    ctx.fillText('\u2192', 1055, baseY - 70);
     ctx.textAlign = 'left';
 
     // Draw player in shop
     drawPlayer();
 
     ctx.restore();
+
+    // Vignette for atmosphere
+    const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.25, W / 2, H / 2, W * 0.7);
+    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vigGrad.addColorStop(1, 'rgba(0,0,0,0.3)');
+    ctx.fillStyle = vigGrad;
+    ctx.fillRect(0, 0, W, H);
 
     // Coin display (top right, fixed)
     ctx.fillStyle = '#c9a84c';
@@ -2445,11 +2889,16 @@ function drawShop() {
     ctx.fillText(coins + ' coins', W - 20, 30);
     ctx.textAlign = 'left';
 
-    // Shop title
+    // Shop title with decorative border
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(W / 2 - 75, 10, 150, 28);
+    ctx.strokeStyle = '#c9a84c';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(W / 2 - 75, 10, 150, 28);
     ctx.fillStyle = '#c9a84c';
-    ctx.font = 'bold 20px Georgia';
+    ctx.font = 'bold 18px Georgia';
     ctx.textAlign = 'center';
-    ctx.fillText('PRO SHOP', W / 2, 30);
+    ctx.fillText('PRO SHOP', W / 2, 31);
     ctx.textAlign = 'left';
 
     // Instruction
