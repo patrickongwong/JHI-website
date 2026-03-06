@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,18 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
+    <!-- Golf Club -->
+    <div class="golf-club" id="golfClub">
+        <div class="club-shaft"></div>
+        <div class="club-head"></div>
+    </div>
+
     <!-- Golf Ball Element -->
     <div class="golf-ball" id="golfBall">
         <div class="ball-inner">
@@ -26,6 +36,13 @@
         </div>
         <div class="hole-rim">
             <div class="hole-dark"></div>
+            <div class="hole-ripple"></div>
+            <div class="hole-ripple-2"></div>
+            <div class="grass-spray" style="--spray-x: -20px; --spray-y: -18px;"></div>
+            <div class="grass-spray" style="--spray-x: 15px; --spray-y: -22px;"></div>
+            <div class="grass-spray" style="--spray-x: -8px; --spray-y: -25px;"></div>
+            <div class="grass-spray" style="--spray-x: 22px; --spray-y: -15px;"></div>
+            <div class="grass-spray" style="--spray-x: -18px; --spray-y: -12px;"></div>
         </div>
     </div>
 
@@ -35,7 +52,8 @@
     <!-- Navigation -->
     <nav class="navbar">
         <div class="container">
-            <a href="#" class="logo">JHI</a>
+            <a href="#" class="logo"><img src="assets/wheel.png" alt="JHI" class="logo-icon">Januarius Holdings,
+                Inc.</a>
             <ul class="nav-links">
                 <li><a href="#about">About</a></li>
                 <li><a href="#portfolio">Portfolio</a></li>
@@ -54,9 +72,9 @@
     <section class="hero" id="hero">
         <div class="container">
             <div class="hero-content">
-                <p class="hero-tagline">Est. 2010</p>
+                <p class="hero-tagline">Est. 2008</p>
                 <h1>Driving <span class="text-accent">Long-Term</span> Value</h1>
-                <p class="hero-subtitle">JHI is a diversified holding company with strategic investments across industries that shape the future.</p>
+                <p class="hero-subtitle">Januarius Holdings, Inc. is a Private Asset Management Investment Company.</p>
                 <a href="#about" class="btn btn-primary">Explore Our Story</a>
             </div>
         </div>
@@ -70,15 +88,26 @@
             <h2 class="section-title">About JHI</h2>
             <div class="about-grid">
                 <div class="about-text">
-                    <p>JHI is a holding company focused on long-term value creation through strategic investments and operational excellence. We partner with exceptional management teams to build market-leading businesses.</p>
-                    <p>Our approach combines patient capital with active engagement, enabling our portfolio companies to pursue sustainable growth strategies that deliver lasting results.</p>
+                    <p>Januarius Holdings, Inc. ("JHI") was formed in 2008 to manage the personal assets of its
+                        Principal, Januario Jesus B. Atencio.</p>
+                    <p>Mr. Atencio built a distinguished 25-year career in the Philippine mass housing industry,
+                        culminating in his decade-long tenure as President and CEO of 8990 Holdings, Inc. (PSE:
+                        HOUSE)—the country’s largest and most successful mass housing developer. Under his leadership,
+                        HOUSE achieved industry-leading growth and attracted institutional investors such as TPG and
+                        Khazanah Nasional Berhad during its 2014 IPO.</p>
+                    <p>Following his retirement and sale of his shares in HOUSE in 2017, JJ formally structured JHI into
+                        a family office. JHI has since managed a portfolio of more than USD100M in assets across Real
+                        Estate, Private Equity, Capital Markets and Art.</p>
+                    <p>Through JHI, Mr. Atencio is also a major sponsor of the Ateneo Blue Eagles as well as the title
+                        sponsor of the largest golf tournament in the Philippines, the 75th Januarius Fil-Am
+                        Invitational.</p>
                 </div>
                 <div class="about-stats">
                     <div class="stat" data-target="10">
                         <span class="stat-number">0</span><span class="stat-plus">+</span>
                         <span class="stat-label">Portfolio Companies</span>
                     </div>
-                    <div class="stat" data-target="2" data-prefix="$" data-suffix="B+">
+                    <div class="stat" data-target="100" data-prefix="$" data-suffix="M+">
                         <span class="stat-number">0</span>
                         <span class="stat-label">Assets Under Management</span>
                     </div>
@@ -96,31 +125,33 @@
         <div class="container">
             <div class="section-badge">Investments</div>
             <h2 class="section-title">Our Portfolio</h2>
-            <p class="section-subtitle">Strategic investments across key sectors</p>
+            <p class="section-subtitle">Strategic investments across key asset classes</p>
             <div class="portfolio-grid">
                 <div class="portfolio-card" data-delay="0">
                     <div class="card-flag"></div>
                     <div class="card-number">01</div>
-                    <h3>Technology</h3>
-                    <p>Investing in innovative technology companies driving digital transformation across industries.</p>
+                    <h3>Private Equity</h3>
+                    <p>Investment in industries such as Real Estate Development, Business Process Outsourcing,
+                        Hospitality and Sports Apparels.
+                    </p>
                 </div>
                 <div class="portfolio-card" data-delay="100">
                     <div class="card-flag"></div>
                     <div class="card-number">02</div>
-                    <h3>Real Estate</h3>
-                    <p>Premium commercial and residential properties in high-growth markets worldwide.</p>
+                    <h3>Investment Properties</h3>
+                    <p>Premium commercial and residential properties through the Philippines.</p>
                 </div>
                 <div class="portfolio-card" data-delay="200">
                     <div class="card-flag"></div>
                     <div class="card-number">03</div>
-                    <h3>Industrial</h3>
-                    <p>Manufacturing and infrastructure businesses with strong competitive moats and scale.</p>
+                    <h3>Art</h3>
+                    <p>JHI holds one of the most prestigious art collections in the Philippines.</p>
                 </div>
                 <div class="portfolio-card" data-delay="300">
                     <div class="card-flag"></div>
                     <div class="card-number">04</div>
-                    <h3>Financial Services</h3>
-                    <p>Banking, insurance, and fintech platforms serving diverse global markets.</p>
+                    <h3>Capital Markets</h3>
+                    <p>A diversified portfolio of equities and fixed income securities in global markets.</p>
                 </div>
             </div>
         </div>
@@ -130,29 +161,43 @@
     <section id="leadership" class="section leadership">
         <div class="container">
             <div class="section-badge">Our Team</div>
-            <h2 class="section-title">Leadership</h2>
-            <p class="section-subtitle">Experienced professionals driving our vision forward</p>
+            <h2 class="section-title">Board of Directors</h2>
+            <p class="section-subtitle"></p>
             <div class="leadership-grid">
                 <div class="leader-card">
                     <div class="leader-photo">
                         <div class="photo-overlay"></div>
                     </div>
-                    <h3>Name</h3>
+                    <h3>JJ Atencio</h3>
                     <p class="leader-title">Chairman & CEO</p>
                 </div>
                 <div class="leader-card">
                     <div class="leader-photo">
                         <div class="photo-overlay"></div>
                     </div>
-                    <h3>Name</h3>
-                    <p class="leader-title">Chief Financial Officer</p>
+                    <h3>Atty. Rodrigo Libunao Jr.</h3>
+                    <p class="leader-title">President</p>
                 </div>
                 <div class="leader-card">
                     <div class="leader-photo">
                         <div class="photo-overlay"></div>
                     </div>
-                    <h3>Name</h3>
-                    <p class="leader-title">Chief Operating Officer</p>
+                    <h3>Atty. Ian Dato</h3>
+                    <p class="leader-title">Director</p>
+                </div>
+                <div class="leader-card">
+                    <div class="leader-photo">
+                        <div class="photo-overlay"></div>
+                    </div>
+                    <h3>Paolo Cagalingan</h3>
+                    <p class="leader-title">Private Equity Head</p>
+                </div>
+                <div class="leader-card">
+                    <div class="leader-photo">
+                        <div class="photo-overlay"></div>
+                    </div>
+                    <h3>Patrick Wong</h3>
+                    <p class="leader-title">Chief Investment Officer</p>
                 </div>
             </div>
         </div>
@@ -166,19 +211,21 @@
             <div class="contact-grid">
                 <div class="contact-info">
                     <h3>Get in Touch</h3>
-                    <p>We welcome inquiries from potential partners, investors, and business owners looking to build something lasting.</p>
+                    <p>We welcome inquiries from potential partners and business owners looking to build something
+                        lasting.</p>
                     <div class="contact-details">
                         <div class="contact-item">
                             <span class="contact-icon">&#9993;</span>
-                            <p>info@jhi.com</p>
+                            <p>jhi@januarius.ph</p>
                         </div>
                         <div class="contact-item">
                             <span class="contact-icon">&#9742;</span>
-                            <p>+1 (555) 000-0000</p>
+                            <p>(02) 8 241 4317</p>
                         </div>
                         <div class="contact-item">
                             <span class="contact-icon">&#9873;</span>
-                            <p>123 Business Ave, Suite 100<br>City, State 00000</p>
+                            <p>Unit 705, BSA Twin Tower B, Bank Dr,<br>Ortigas Center, Mandaluyong City,<br>1553 Metro
+                                Manila</p>
                         </div>
                     </div>
                 </div>
@@ -196,8 +243,8 @@
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
-                <span class="logo">JHI</span>
-                <p>&copy; 2026 JHI Holdings. All rights reserved.</p>
+                <span class="logo">Januarius Holdings, Inc.</span>
+                <p>&copy; 2026 Januarius Holdings, Inc. All rights reserved.</p>
             </div>
         </div>
         <div class="footer-grass"></div>
@@ -205,4 +252,5 @@
 
     <script src="js/main.js"></script>
 </body>
+
 </html>

@@ -3,6 +3,7 @@
 const golfBall = document.getElementById('golfBall');
 const ballShadow = document.getElementById('ballShadow');
 const golfHole = document.getElementById('golfHole');
+const golfClub = document.getElementById('golfClub');
 const trailCanvas = document.getElementById('trailCanvas');
 const ctx = trailCanvas.getContext('2d');
 
@@ -13,13 +14,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// ---- Smooth parabolic flight path ----
-// The ball follows a single graceful arc from top-right to bottom-center,
-// like a real golf shot flying through the air and landing in the hole.
-// We use a quadratic bezier-style path for the horizontal movement
-// and a parabolic arc for the vertical (simulating gravity).
-
-// Landing position (where the hole is) - center-bottom area
+// Landing position (where the hole is)
 const LANDING_X = 50; // vw
 const LANDING_Y = 88; // vh
 
@@ -28,60 +23,81 @@ function getScrollProgress() {
     return docHeight > 0 ? Math.min(window.scrollY / docHeight, 1) : 0;
 }
 
+// ---- Flight path with natural bounce landing ----
+// Phase 1 (0–0.85): Smooth parabolic arc flight
+// Phase 2 (0.85–0.92): First bounce — ball hits near hole, pops up
+// Phase 3 (0.92–0.96): Second smaller bounce
+// Phase 4 (0.96–1.0): Roll/settle into hole and sink
+
+// Club impact happens at t = 0.03
+// Ball sits on tee until impact, then launches
+const IMPACT_T = 0.03;
+const TEE_X = 82;  // ball starting position (vw)
+const TEE_Y = 55;  // ball on tee, mid-hero area (vh)
+
 function getBallPosition(t) {
-    // t goes from 0 to 1 as user scrolls
-
-    // Horizontal: smooth ease from right (80vw) to center (50vw)
-    // with a gentle S-curve
-    const startX = 82;
     const endX = LANDING_X;
-    // Cubic ease-in-out for smooth horizontal drift
-    const tSmooth = t < 0.5
-        ? 4 * t * t * t
-        : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    const x = startX + (endX - startX) * tSmooth;
+    const groundY = LANDING_Y;
 
-    // Vertical: parabolic arc
-    // Ball starts above screen (-10vh), peaks around 20vh at t~0.15,
-    // then follows a natural downward parabola to land at LANDING_Y
-    //
-    // We split into two phases:
-    // Phase 1 (0 to 0.12): Ball enters from above — rises to peak
-    // Phase 2 (0.12 to 1.0): Long graceful descent to the hole
+    let x, y, rot, scale;
 
-    let y;
-    const peakT = 0.10;
-    const peakY = 12; // highest visible point (vh)
-    const startY = -8;
-    const endY = LANDING_Y;
-
-    if (t <= peakT) {
-        // Rising phase: ease from startY to peakY
-        const p = t / peakT;
-        const pSmooth = Math.sin(p * Math.PI / 2); // ease-out
-        y = startY + (peakY - startY) * pSmooth;
-    } else {
-        // Descent phase: quadratic (gravity-like) from peakY to endY
-        const p = (t - peakT) / (1 - peakT);
-        // Quadratic ease-in gives a natural gravity feel
-        y = peakY + (endY - peakY) * (p * p);
-    }
-
-    // Rotation: steady spin that gradually slows as ball "lands"
-    const rotSpeed = 1800; // total degrees over full scroll
-    // Spin fast at first, slow down near landing
-    const rotEase = 1 - Math.pow(1 - t, 0.5);
-    const rot = rotEase * rotSpeed;
-
-    // Scale: slightly smaller at start/end, full size in flight
-    let scale;
-    if (t < 0.08) {
-        scale = 0.5 + (t / 0.08) * 0.5;
-    } else if (t > 0.92) {
-        const p = (t - 0.92) / 0.08;
-        scale = 1.0 - p * 0.3; // shrink slightly as it drops into hole
-    } else {
+    if (t <= IMPACT_T) {
+        // Ball sitting on tee, waiting for club to hit
+        x = TEE_X;
+        y = TEE_Y;
+        rot = 0;
         scale = 1.0;
+
+    } else {
+        // After impact — remap t so flight starts at 0
+        const ft = (t - IMPACT_T) / (1 - IMPACT_T); // 0 to 1 for flight
+
+        // Horizontal: ball moves LEFT the whole time (tee at 82vw → hole at 50vw)
+        // Starts fast (launch), eases to a stop
+        const tSmooth = 1 - Math.pow(1 - ft, 2.5);
+        x = TEE_X + (endX - TEE_X) * tSmooth;
+
+        const peakFt = 0.12;  // peak of the arc
+        const peakY = 8;      // peak of arc — high in viewport (vh)
+
+        if (ft <= peakFt) {
+            // Launch: ball goes UP and left
+            const p = ft / peakFt;
+            const pSmooth = Math.sin(p * Math.PI / 2);
+            y = TEE_Y + (peakY - TEE_Y) * pSmooth;
+            rot = ft * 2000;
+            scale = 1.0;
+
+        } else if (ft <= 0.82) {
+            // Descent: ball comes DOWN and continues left — gravity arc
+            const p = (ft - peakFt) / (0.82 - peakFt);
+            y = peakY + (groundY - peakY) * (p * p);
+            rot = 240 + (ft - peakFt) * 2000;
+            scale = 1.0;
+
+        } else if (ft <= 0.90) {
+            // First bounce
+            const p = (ft - 0.82) / 0.08;
+            const bounceHeight = 15;
+            y = groundY - bounceHeight * 4 * p * (1 - p);
+            rot = 1680 + p * 360;
+            scale = 1.0;
+
+        } else if (ft <= 0.95) {
+            // Second bounce
+            const p = (ft - 0.90) / 0.05;
+            const bounceHeight = 6;
+            y = groundY - bounceHeight * 4 * p * (1 - p);
+            rot = 2040 + p * 180;
+            scale = 1.0;
+
+        } else {
+            // Settle and sink into hole
+            const p = (ft - 0.95) / 0.05;
+            y = groundY;
+            rot = 2220 + p * 40;
+            scale = 1.0 - p * 0.7;
+        }
     }
 
     return { x, y, rot, scale };
@@ -114,56 +130,176 @@ class Particle {
 let lastBallX = 0;
 let lastBallY = 0;
 
+// ---- Landing animation state ----
+let hasTriggeredBounce1 = false;
+let hasTriggeredBounce2 = false;
+let hasTriggeredSink = false;
+let lastProgress = 0;
+
+function triggerRipple() {
+    const ripple1 = golfHole.querySelector('.hole-ripple');
+    const ripple2 = golfHole.querySelector('.hole-ripple-2');
+    // Reset and replay
+    ripple1.classList.remove('animate');
+    ripple2.classList.remove('animate');
+    void ripple1.offsetWidth; // force reflow
+    ripple1.classList.add('animate');
+    ripple2.classList.add('animate');
+}
+
+function triggerGrassSpray() {
+    const sprays = golfHole.querySelectorAll('.grass-spray');
+    sprays.forEach(s => {
+        s.classList.remove('animate');
+        void s.offsetWidth;
+        s.classList.add('animate');
+    });
+}
+
+function resetLandingEffects() {
+    hasTriggeredBounce1 = false;
+    hasTriggeredBounce2 = false;
+    hasTriggeredSink = false;
+    golfBall.classList.remove('landing', 'sinking');
+    const ripple1 = golfHole.querySelector('.hole-ripple');
+    const ripple2 = golfHole.querySelector('.hole-ripple-2');
+    ripple1.classList.remove('animate');
+    ripple2.classList.remove('animate');
+    golfHole.querySelectorAll('.grass-spray').forEach(s => s.classList.remove('animate'));
+}
+
 function updateBall() {
     const progress = getScrollProgress();
     const pos = getBallPosition(progress);
 
-    const pixelX = (pos.x / 100) * window.innerWidth;
+    const w = window.innerWidth;
+    const pixelX = (pos.x / 100) * w;
     const pixelY = (pos.y / 100) * window.innerHeight;
-    const ballSize = 48;
-    const halfBall = ballSize / 2;
+    const halfBall = w <= 480 ? 12 : w <= 768 ? 15 : 24;
+
+    // Detect scroll direction for resetting effects
+    const scrollingUp = progress < lastProgress - 0.005;
+    if (scrollingUp && progress < 0.84) {
+        resetLandingEffects();
+    }
+
+    // Map progress to flight-time for bounce detection
+    const ft = progress > IMPACT_T ? (progress - IMPACT_T) / (1 - IMPACT_T) : 0;
+
+    // Squish the ball on bounce impacts
+    let transformExtra = '';
+    if (ft >= 0.82 && ft <= 0.825) {
+        const impactP = (ft - 0.82) / 0.005;
+        const squish = impactP < 1 ? Math.sin(impactP * Math.PI) * 0.2 : 0;
+        transformExtra = ` scaleX(${1 + squish}) scaleY(${1 - squish})`;
+    } else if (ft >= 0.90 && ft <= 0.905) {
+        const impactP = (ft - 0.90) / 0.005;
+        const squish = impactP < 1 ? Math.sin(impactP * Math.PI) * 0.12 : 0;
+        transformExtra = ` scaleX(${1 + squish}) scaleY(${1 - squish})`;
+    }
 
     golfBall.style.left = (pixelX - halfBall) + 'px';
     golfBall.style.top = (pixelY - halfBall) + 'px';
-    golfBall.style.transform = `rotate(${pos.rot}deg) scale(${pos.scale})`;
+    golfBall.style.transform = `rotate(${pos.rot}deg) scale(${pos.scale})${transformExtra}`;
 
-    // Shadow adjusts with "height" — bigger shadow = closer to ground
+    // ---- Golf club swing ----
+    const clubOffsetX = w <= 480 ? 14 : w <= 768 ? 20 : 30;
+    const clubShaftLen = w <= 480 ? 90 : w <= 768 ? 120 : 200;
+    const clubPivotX = (TEE_X / 100) * w + clubOffsetX;
+    const clubPivotY = (TEE_Y / 100) * window.innerHeight - clubShaftLen;
+
+    golfClub.style.left = clubPivotX + 'px';
+    golfClub.style.top = clubPivotY + 'px';
+
+    const fadeEnd = IMPACT_T + 0.04; // club disappears shortly after impact
+
+    if (progress < fadeEnd) {
+        golfClub.style.opacity = 1;
+
+        let clubAngle;
+        if (progress < IMPACT_T * 0.4) {
+            // Backswing: hold at -50deg
+            clubAngle = -50;
+        } else if (progress < IMPACT_T) {
+            // Downswing: accelerate from -50 to 0 (impact)
+            const p = (progress - IMPACT_T * 0.4) / (IMPACT_T * 0.6);
+            const ease = p * p; // accelerate into ball
+            clubAngle = -50 + ease * 50; // -50 → 0 at impact
+        } else {
+            // Follow-through: 0 → 120, then fade out
+            const p = (progress - IMPACT_T) / 0.04;
+            const ease = 1 - Math.pow(1 - p, 2); // decelerate
+            clubAngle = ease * 120;
+            golfClub.style.opacity = 1 - ease;
+        }
+
+        golfClub.style.transform = `rotate(${clubAngle}deg)`;
+    } else {
+        golfClub.style.opacity = 0;
+    }
+
+    // Shadow — gets bigger and darker as ball approaches ground
     const groundProximity = Math.max(0, (pos.y - 12) / (LANDING_Y - 12));
     ballShadow.style.opacity = 0.1 + groundProximity * 0.4;
     ballShadow.style.transform = `translateX(-50%) scale(${0.4 + groundProximity * 0.6})`;
 
-    // Position the golf hole at the landing spot
+    // Position the golf hole
     const holeX = (LANDING_X / 100) * window.innerWidth;
     const holeY = (LANDING_Y / 100) * window.innerHeight;
     golfHole.style.left = (holeX - 30) + 'px';
     golfHole.style.top = (holeY + 10) + 'px';
 
-    // Show hole when user has scrolled enough to see the landing zone
-    if (progress > 0.5) {
+    // Show hole only when contact section is in view
+    const contactSection = document.getElementById('contact');
+    const contactRect = contactSection.getBoundingClientRect();
+    if (contactRect.top < window.innerHeight * 0.8) {
         golfHole.classList.add('visible');
     } else {
         golfHole.classList.remove('visible');
     }
 
-    // Hide ball when it's "in the hole"
-    if (progress > 0.97) {
-        golfBall.style.opacity = Math.max(0, (1 - progress) / 0.03);
+    // --- Trigger landing effects at key moments ---
+
+    // First bounce impact (ft ≈ 0.82)
+    if (ft >= 0.82 && !hasTriggeredBounce1) {
+        hasTriggeredBounce1 = true;
+        triggerGrassSpray();
+    }
+
+    // Second bounce impact (ft ≈ 0.90)
+    if (ft >= 0.90 && !hasTriggeredBounce2) {
+        hasTriggeredBounce2 = true;
+        triggerGrassSpray();
+    }
+
+    // Sink into hole (ft ≈ 0.96)
+    if (ft >= 0.96 && !hasTriggeredSink) {
+        hasTriggeredSink = true;
+        golfBall.classList.add('sinking');
+        triggerRipple();
+    }
+
+    // Fade ball out as it sinks
+    if (ft > 0.96) {
+        golfBall.style.opacity = Math.max(0, (1 - ft) / 0.04);
     } else {
         golfBall.style.opacity = 1;
     }
 
-    // Trail particles — only when moving
-    const dx = pixelX - lastBallX;
-    const dy = pixelY - lastBallY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist > 4) {
-        particles.push(new Particle(pixelX, pixelY));
-        if (particles.length > MAX_PARTICLES) particles.shift();
+    // Trail particles — only during flight (not during bounces/settling)
+    if (ft > 0 && ft < 0.82) {
+        const dx = pixelX - lastBallX;
+        const dy = pixelY - lastBallY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 4) {
+            particles.push(new Particle(pixelX, pixelY));
+            if (particles.length > MAX_PARTICLES) particles.shift();
+        }
     }
 
     lastBallX = pixelX;
     lastBallY = pixelY;
+    lastProgress = progress;
 
     // Draw trail
     ctx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
