@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>JHI Golf Adventure</title>
+    <link rel="icon" type="image/png" href="../assets/wheel.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a1628;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Georgia, serif;
+            color: #fff;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            width: min(1200px, 96vw);
+            padding: 8px 0;
+            align-items: center;
+        }
+        .title { font-size: 1.2rem; color: #c9a84c; letter-spacing: 2px; }
+        .info { display: flex; gap: 20px; font-size: 0.9rem; color: rgba(255,255,255,0.6); }
+        .info strong { color: #c9a84c; }
+        #gameCanvas {
+            border-radius: 8px;
+            box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+            touch-action: none;
+        }
+        .controls-hint {
+            width: min(1200px, 96vw);
+            padding: 8px 0;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            display: flex;
+            justify-content: space-between;
+        }
+        .mobile-controls {
+            display: none;
+            width: min(1200px, 96vw);
+            justify-content: space-between;
+            padding: 8px 0;
+            gap: 8px;
+        }
+        .mobile-btn {
+            flex: 1;
+            padding: 18px 0;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9rem;
+            font-family: Georgia, serif;
+            text-align: center;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mobile-btn:active { background: rgba(201,168,76,0.25); border-color: #c9a84c; color: #c9a84c; }
+        .mobile-btn.hit-btn { background: rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.4); color: #c9a84c; font-weight: bold; }
+        .mobile-btn.hit-btn:active { background: rgba(201,168,76,0.4); }
+        @media (pointer: coarse) {
+            .mobile-controls { display: flex; }
+            .controls-hint { display: none; }
+        }
+        .overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 100; backdrop-filter: blur(4px);
+        }
+        .overlay.hidden { display: none; }
+        .overlay h2 { font-size: 2.2rem; color: #c9a84c; margin-bottom: 8px; }
+        .overlay p { color: rgba(255,255,255,0.7); margin-bottom: 20px; font-size: 1.1rem; }
+        .overlay button {
+            padding: 14px 40px; background: #c9a84c; color: #1a472a;
+            border: none; border-radius: 6px; font-size: 1.1rem;
+            font-weight: 700; cursor: pointer; font-family: Georgia, serif;
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+        .overlay button:hover { background: #e0c872; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="title">JHI GOLF ADVENTURE</div>
+    <div class="info">
+        <span>Hole <strong id="holeNum">1</strong>/6</span>
+        <span>Par <strong id="parNum">3</strong></span>
+        <span>Strokes <strong id="strokeNum">0</strong></span>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<div class="controls-hint">
+    <span>A/D or Arrow Keys to move | W or Up to jump | Click &amp; drag near ball to hit</span>
+    <span id="statusText"></span>
+</div>
+
+<div class="mobile-controls">
+    <div class="mobile-btn" id="btnLeft">&#9664; LEFT</div>
+    <div class="mobile-btn" id="btnJump">&#9650; JUMP</div>
+    <div class="mobile-btn hit-btn" id="btnHit">&#9971; HIT</div>
+    <div class="mobile-btn" id="btnRight">RIGHT &#9654;</div>
+</div>
+
+<div class="overlay hidden" id="holeOverlay">
+    <h2 id="holeMsg">Nice!</h2>
+    <p id="holeSummary"></p>
+    <button id="nextBtn">Next Hole</button>
+</div>
+
+<div class="overlay hidden" id="endOverlay">
+    <h2>Round Complete!</h2>
+    <p id="endSummary"></p>
+    <button id="replayBtn">Play Again</button>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+    const maxW = 1200, maxH = 600;
+    const vw = window.innerWidth * 0.96;
+    const vh = window.innerHeight * 0.58;
+    canvas.width = Math.min(maxW, vw);
+    canvas.height = Math.min(maxH, vh);
+    // Scale factor for element sizes
+    S = canvas.width / 800;
+}
+let S = 1;
+resize();
+window.addEventListener('resize', resize);
+
+// ==================== CONSTANTS ====================
+const GRAVITY = 0.45;
+const PLAYER_SPEED = 3.8;
+const JUMP_FORCE = -10.5;
+const BALL_AIR_DRAG = 0.998;
+const BALL_GROUND_FRICTION = 0.985;
+const BALL_BOUNCE = 0.5;
+const MAX_HIT_POWER = 16;
+const HIT_RANGE = 50;
+
+// ==================== LEVEL DEFINITIONS ====================
+const levels = [
+    { // Hole 1 - Flat & simple
+        par: 2,
+        playerStart: { x: 80, y: 0 },
+        ballStart: { x: 200, y: 0 },
+        holePos: { x: 700, y: 0 },
+        terrain: [{ x: 0, y: 0, w: 1600, h: 0 }],
+        platforms: [], water: [], sand: []
+    },
+    { // Hole 2 - Hill
+        par: 3,
+        playerStart: { x: 60, y: 0 },
+        ballStart: { x: 180, y: 0 },
+        holePos: { x: 900, y: 0 },
+        terrain: [
+            { x: 0, y: 0, w: 400, h: 0 },
+            { x: 400, y: 0, w: 200, h: -60 },
+            { x: 600, y: -60, w: 200, h: 0 },
+            { x: 800, y: -60, w: 200, h: 60 },
+            { x: 1000, y: 0, w: 400, h: 0 }
+        ],
+        platforms: [], water: [],
+        sand: [{ x: 650, w: 100 }]
+    },
+    { // Hole 3 - Gap jump
+        par: 3,
+        playerStart: { x: 60, y: 0 },
+        ballStart: { x: 200, y: 0 },
+        holePos: { x: 800, y: 0 },
+        terrain: [
+            { x: 0, y: 0, w: 350, h: 0 },
+            { x: 450, y: 0, w: 600, h: 0 }
+        ],
+        platforms: [], water: [{ x: 350, w: 100 }], sand: []
+    },
+    { // Hole 4 - Elevated green
+        par: 3,
+        playerStart: { x: 60, y: 0 },
+        ballStart: { x: 200, y: 0 },
+        holePos: { x: 750, y: -100 },
+        terrain: [
+            { x: 0, y: 0, w: 500, h: 0 },
+            { x: 500, y: 0, w: 100, h: -100 },
+            { x: 600, y: -100, w: 400, h: 0 }
+        ],
+        platforms: [], water: [], sand: []
+    },
+    { // Hole 5 - Platforms
+        par: 4,
+        playerStart: { x: 60, y: 0 },
+        ballStart: { x: 180, y: 0 },
+        holePos: { x: 900, y: -80 },
+        terrain: [
+            { x: 0, y: 0, w: 350, h: 0 },
+            { x: 550, y: -40, w: 150, h: 0 },
+            { x: 800, y: -80, w: 300, h: 0 }
+        ],
+        platforms: [
+            { x: 350, y: -40, w: 80 },
+            { x: 470, y: -20, w: 80 }
+        ],
+        water: [{ x: 350, w: 200 }], sand: []
+    },
+    { // Hole 6 - The Grand Finale
+        par: 5,
+        playerStart: { x: 40, y: 0 },
+        ballStart: { x: 160, y: 0 },
+        holePos: { x: 1100, y: -40 },
+        terrain: [
+            { x: 0, y: 0, w: 300, h: 0 },
+            { x: 300, y: 0, w: 150, h: -50 },
+            { x: 450, y: -50, w: 150, h: 0 },
+            { x: 700, y: -20, w: 200, h: 0 },
+            { x: 1000, y: -40, w: 300, h: 0 }
+        ],
+        platforms: [{ x: 600, y: -50, w: 80 }],
+        water: [{ x: 600, w: 100 }, { x: 900, w: 100 }],
+        sand: [{ x: 480, w: 80 }]
+    }
+];
+
+// ==================== GAME STATE ====================
+let currentHole = 0;
+let strokes = 0;
+let scores = [];
+let cameraX = 0;
+let gameTime = 0;
+
+function getGroundY(x) {
+    const level = levels[currentHole];
+    const baseY = canvas.height - 80 * S;
+    for (const t of level.terrain) {
+        if (x >= t.x && x < t.x + t.w) {
+            if (t.h === 0) return baseY + t.y;
+            const progress = (x - t.x) / t.w;
+            return (baseY + t.y) + t.h * progress;
+        }
+    }
+    return null;
+}
+
+function getPlatformAt(x, y, vy) {
+    const level = levels[currentHole];
+    for (const p of (level.platforms || [])) {
+        const platY = canvas.height - 80 * S + (p.y || 0);
+        if (x >= p.x && x <= p.x + p.w) {
+            if (y <= platY && y + vy >= platY - 5) {
+                return platY;
+            }
+        }
+    }
+    return null;
+}
+
+// Player
+const player = {
+    x: 0, y: 0, vx: 0, vy: 0,
+    w: 20, h: 50,
+    onGround: false, facing: 1,
+    walking: false, walkFrame: 0
+};
+
+// Ball
+const ball = {
+    x: 0, y: 0, vx: 0, vy: 0, r: 7,
+    onGround: false, active: true, sunk: false,
+    justHit: 0 // grace frames after hit
+};
+
+// Hole target
+const hole = { x: 0, y: 0, r: 15 };
+
+// Aim state
+let aiming = false;
+let aimStart = { x: 0, y: 0 };
+let aimEnd = { x: 0, y: 0 };
+
+// Mobile auto-hit state
+let mobileHitMode = false;
+let mobileAimAngle = 0;
+let mobileAimPower = 0;
+let mobileAimDir = 1;
+let mobileAimPhase = 'angle'; // 'angle' or 'power'
+
+// Input
+const keys = {};
+
+// Particles
+let particles = [];
+
+function spawnParticles(x, y, color, count, speed) {
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = (Math.random() * 0.5 + 0.5) * speed;
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd - Math.random() * 2,
+            life: 1,
+            decay: 0.01 + Math.random() * 0.02,
+            size: 1.5 + Math.random() * 2.5,
+            color
+        });
+    }
+}
+
+// ==================== INIT ====================
+function initHole() {
+    const level = levels[currentHole];
+    const baseY = canvas.height - 80 * S;
+
+    const pGroundY = getGroundY(level.playerStart.x);
+    player.x = level.playerStart.x;
+    player.y = (pGroundY || baseY) - player.h;
+    player.vx = 0; player.vy = 0;
+    player.onGround = true; player.facing = 1;
+
+    const bGroundY = getGroundY(level.ballStart.x);
+    ball.x = level.ballStart.x;
+    ball.y = (bGroundY || baseY) - ball.r;
+    ball.vx = 0; ball.vy = 0;
+    ball.onGround = true; ball.active = true; ball.sunk = false;
+    ball.justHit = 0;
+
+    const hGroundY = getGroundY(level.holePos.x);
+    hole.x = level.holePos.x;
+    hole.y = (hGroundY || baseY);
+
+    strokes = 0;
+    aiming = false;
+    mobileHitMode = false;
+    cameraX = 0;
+    particles = [];
+
+    document.getElementById('holeNum').textContent = currentHole + 1;
+    document.getElementById('parNum').textContent = level.par;
+    document.getElementById('strokeNum').textContent = 0;
+    document.getElementById('statusText').textContent = 'Walk to the ball';
+}
+
+// ==================== INPUT ====================
+document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+function setupMobileBtn(id, key) {
+    const btn = document.getElementById(id);
+    btn.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; });
+    btn.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; });
+    btn.addEventListener('touchcancel', e => { keys[key] = false; });
+}
+setupMobileBtn('btnLeft', 'a');
+setupMobileBtn('btnRight', 'd');
+setupMobileBtn('btnJump', 'w');
+
+// Mobile HIT button
+const btnHit = document.getElementById('btnHit');
+btnHit.addEventListener('touchstart', e => {
+    e.preventDefault();
+    handleMobileHit();
+});
+btnHit.addEventListener('click', e => {
+    e.preventDefault();
+    handleMobileHit();
+});
+
+function handleMobileHit() {
+    if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
+
+    if (!mobileHitMode) {
+        // Start aim - angle phase
+        mobileHitMode = true;
+        mobileAimPhase = 'angle';
+        mobileAimAngle = -0.4; // start angle
+        mobileAimDir = -1; // sweeping upward
+        mobileAimPower = 10;
+        btnHit.textContent = 'SET ANGLE';
+    } else if (mobileAimPhase === 'angle') {
+        // Lock angle, start power phase
+        mobileAimPhase = 'power';
+        mobileAimPower = 3;
+        mobileAimDir = 1;
+        btnHit.textContent = 'SET POWER';
+    } else if (mobileAimPhase === 'power') {
+        // Execute hit
+        const dir = player.facing;
+        ball.vx = Math.cos(mobileAimAngle) * mobileAimPower * dir;
+        ball.vy = Math.sin(mobileAimAngle) * mobileAimPower;
+        ball.onGround = false;
+        ball.justHit = 10;
+        strokes++;
+        document.getElementById('strokeNum').textContent = strokes;
+        spawnParticles(ball.x, ball.y, '#fff', 8, 3);
+        mobileHitMode = false;
+        btnHit.textContent = '\u26F3 HIT';
+    }
+}
+
+// Aim with mouse/touch on canvas
+function getCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const t = e.touches ? e.touches[0] : e;
+    return {
+        x: (t.clientX - rect.left) * scaleX + cameraX,
+        y: (t.clientY - rect.top) * scaleY
+    };
+}
+
+function ballIsSettled() {
+    return Math.abs(ball.vx) < 0.5 && Math.abs(ball.vy) < 0.5;
+}
+
+canvas.addEventListener('mousedown', e => startAim(getCanvasPos(e)));
+canvas.addEventListener('mousemove', e => moveAim(getCanvasPos(e)));
+canvas.addEventListener('mouseup', e => endAim(getCanvasPos(e)));
+canvas.addEventListener('touchstart', e => { e.preventDefault(); if (e.touches.length === 1) startAim(getCanvasPos(e)); }, { passive: false });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); moveAim(getCanvasPos(e)); }, { passive: false });
+canvas.addEventListener('touchend', e => { e.preventDefault(); endAim(aimEnd); }, { passive: false });
+
+function startAim(pos) {
+    if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
+    const dx = pos.x - ball.x, dy = pos.y - ball.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 100) return;
+    aiming = true;
+    aimStart = { ...pos };
+    aimEnd = { ...pos };
+}
+
+function moveAim(pos) {
+    if (!aiming) return;
+    aimEnd = { ...pos };
+}
+
+function endAim(pos) {
+    if (!aiming) return;
+    aiming = false;
+    const dx = aimStart.x - aimEnd.x;
+    const dy = aimStart.y - aimEnd.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 8) return;
+
+    const power = Math.min(dist / 8, MAX_HIT_POWER);
+    const angle = Math.atan2(dy, dx);
+    ball.vx = Math.cos(angle) * power;
+    ball.vy = Math.sin(angle) * power;
+    ball.onGround = false;
+    ball.justHit = 10; // grace frames
+    strokes++;
+    document.getElementById('strokeNum').textContent = strokes;
+    spawnParticles(ball.x, ball.y, '#fff', 8, 3);
+}
+
+// ==================== UPDATE ====================
+function update() {
+    const level = levels[currentHole];
+    if (ball.sunk) return;
+    gameTime++;
+
+    // Mobile aim animation
+    if (mobileHitMode) {
+        if (mobileAimPhase === 'angle') {
+            mobileAimAngle += mobileAimDir * 0.03;
+            if (mobileAimAngle < -1.4) mobileAimDir = 1;
+            if (mobileAimAngle > -0.1) mobileAimDir = -1;
+        } else if (mobileAimPhase === 'power') {
+            mobileAimPower += mobileAimDir * 0.2;
+            if (mobileAimPower > MAX_HIT_POWER) mobileAimDir = -1;
+            if (mobileAimPower < 3) mobileAimDir = 1;
+        }
+    }
+
+    // --- Player movement ---
+    player.walking = false;
+    if (keys['a'] || keys['arrowleft']) {
+        player.vx = -PLAYER_SPEED;
+        player.facing = -1;
+        player.walking = true;
+    } else if (keys['d'] || keys['arrowright']) {
+        player.vx = PLAYER_SPEED;
+        player.facing = 1;
+        player.walking = true;
+    } else {
+        player.vx = 0;
+    }
+
+    if ((keys['w'] || keys['arrowup'] || keys[' ']) && player.onGround) {
+        player.vy = JUMP_FORCE;
+        player.onGround = false;
+    }
+
+    player.vy += GRAVITY;
+    player.x += player.vx;
+    player.y += player.vy;
+
+    if (player.walking) player.walkFrame += 0.15;
+    else player.walkFrame = 0;
+
+    // Player ground collision
+    const pGroundY = getGroundY(player.x);
+    const pPlatY = getPlatformAt(player.x, player.y + player.h, player.vy);
+    const effectiveGround = pPlatY !== null ? pPlatY : pGroundY;
+
+    if (effectiveGround !== null && player.y + player.h >= effectiveGround) {
+        player.y = effectiveGround - player.h;
+        player.vy = 0;
+        player.onGround = true;
+    } else if (effectiveGround === null) {
+        player.onGround = false;
+    }
+
+    if (player.y > canvas.height + 50) {
+        const pGY = getGroundY(level.playerStart.x) || (canvas.height - 80 * S);
+        player.x = level.playerStart.x;
+        player.y = pGY - player.h;
+        player.vx = 0; player.vy = 0;
+    }
+    player.x = Math.max(10, player.x);
+
+    // --- Ball physics ---
+    if (ball.active) {
+        if (ball.justHit > 0) ball.justHit--;
+
+        if (!ball.onGround) {
+            // Gravity
+            ball.vy += GRAVITY;
+            // Air drag
+            ball.vx *= BALL_AIR_DRAG;
+            ball.vy *= BALL_AIR_DRAG;
+            // Quadratic drag at high speed
+            const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            if (speed > 2) {
+                const drag = 0.0005 * speed;
+                ball.vx -= ball.vx * drag;
+                ball.vy -= ball.vy * drag;
+            }
+        }
+
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // Ground collision (skip if just hit)
+        if (ball.justHit <= 0) {
+            const bGroundY = getGroundY(ball.x);
+            const bPlatY = getPlatformAt(ball.x, ball.y + ball.r, ball.vy);
+            const bEffGround = bPlatY !== null ? bPlatY : bGroundY;
+
+            if (bEffGround !== null && ball.y + ball.r >= bEffGround) {
+                ball.y = bEffGround - ball.r;
+
+                // Slope normal calculation
+                const slopeCheck = 4;
+                const gyL = getGroundY(ball.x - slopeCheck);
+                const gyR = getGroundY(ball.x + slopeCheck);
+
+                if (gyL !== null && gyR !== null) {
+                    const tx = slopeCheck * 2;
+                    const ty = gyR - gyL;
+                    const tLen = Math.sqrt(tx * tx + ty * ty);
+                    // Normal pointing UP (away from ground) in canvas coords
+                    const nx = ty / tLen;
+                    const ny = -tx / tLen;
+
+                    const dot = ball.vx * nx + ball.vy * ny;
+
+                    if (dot < 0) { // moving into ground
+                        if (Math.abs(dot) > 2) {
+                            // Bounce with energy loss
+                            const bounceFactor = BALL_BOUNCE * Math.max(0.3, 1 - Math.abs(dot) * 0.02);
+                            ball.vx -= (1 + bounceFactor) * dot * nx;
+                            ball.vy -= (1 + bounceFactor) * dot * ny;
+                            ball.vx *= 0.95;
+                            ball.onGround = false;
+                            spawnParticles(ball.x, bEffGround, '#4a8', 3, 1.5);
+                        } else {
+                            // Settle onto surface
+                            ball.vx -= dot * nx;
+                            ball.vy -= dot * ny;
+                            ball.onGround = true;
+                        }
+                    } else {
+                        // Ball on surface but not moving into it - settle
+                        ball.vy = 0;
+                        ball.onGround = true;
+                    }
+
+                    // Slope gravity - ball rolls downhill
+                    if (ball.onGround) {
+                        const slopeAngle = Math.atan2(ty, tx);
+                        ball.vx += Math.sin(slopeAngle) * 0.15;
+                    }
+                } else {
+                    // No slope info - simple bounce
+                    if (Math.abs(ball.vy) > 2) {
+                        ball.vy = -ball.vy * BALL_BOUNCE;
+                        ball.onGround = false;
+                    } else {
+                        ball.vy = 0;
+                        ball.onGround = true;
+                    }
+                }
+
+                // Rolling friction
+                if (ball.onGround) {
+                    const groundSpeed = Math.abs(ball.vx);
+                    if (groundSpeed > 0.1) {
+                        const frictionCoeff = groundSpeed > 3 ? BALL_GROUND_FRICTION : 0.975;
+                        ball.vx *= frictionCoeff;
+                    }
+                }
+
+                // Sand trap friction
+                for (const s of (level.sand || [])) {
+                    if (ball.x >= s.x && ball.x <= s.x + s.w) {
+                        ball.vx *= 0.88;
+                        if (Math.abs(ball.vx) < 0.5) ball.vx *= 0.8;
+                    }
+                }
+            } else if (bEffGround === null) {
+                ball.onGround = false;
+            }
+        }
+
+        // Ball falls in water
+        for (const w of (level.water || [])) {
+            const waterY = canvas.height - 80 * S;
+            if (ball.x >= w.x && ball.x <= w.x + w.w && ball.y > waterY - 10) {
+                const resetY = getGroundY(level.ballStart.x) || (canvas.height - 80 * S);
+                ball.x = level.ballStart.x;
+                ball.y = resetY - ball.r;
+                ball.vx = 0; ball.vy = 0;
+                ball.onGround = true;
+                ball.justHit = 0;
+                strokes++;
+                document.getElementById('strokeNum').textContent = strokes;
+                document.getElementById('statusText').textContent = 'Water! +1 penalty';
+                spawnParticles(ball.x, waterY, '#48f', 12, 3);
+                break;
+            }
+        }
+
+        // Ball falls into void
+        if (ball.y > canvas.height + 60) {
+            const resetY = getGroundY(level.ballStart.x) || (canvas.height - 80 * S);
+            ball.x = level.ballStart.x;
+            ball.y = resetY - ball.r;
+            ball.vx = 0; ball.vy = 0;
+            ball.onGround = true;
+            ball.justHit = 0;
+            strokes++;
+            document.getElementById('strokeNum').textContent = strokes;
+        }
+
+        // Stop ball when barely moving on ground
+        if (ball.onGround) {
+            ball.vy = 0; // Always zero out vertical velocity on ground
+            if (Math.abs(ball.vx) < 0.15) {
+                ball.vx *= 0.8;
+                if (Math.abs(ball.vx) < 0.02) ball.vx = 0;
+            }
+        }
+
+        // Check hole
+        const hDx = ball.x - hole.x;
+        const hDy = (ball.y + ball.r) - hole.y;
+        const hDist = Math.sqrt(hDx * hDx + hDy * hDy);
+        const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+
+        if (hDist < hole.r && speed < 7) {
+            ball.sunk = true;
+            ball.x = hole.x;
+            ball.y = hole.y - ball.r;
+            ball.vx = 0; ball.vy = 0;
+            spawnParticles(hole.x, hole.y, '#c9a84c', 15, 4);
+            onHoleSunk();
+        }
+
+        // Gravity pull near hole
+        if (hDist < hole.r + 15 && speed < 4 && ball.onGround) {
+            ball.vx += (hole.x - ball.x) * 0.008;
+        }
+    }
+
+    // --- Particles ---
+    particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.08;
+        p.life -= p.decay;
+        return p.life > 0;
+    });
+
+    // --- Camera ---
+    const target = (Math.abs(ball.vx) > 2 || Math.abs(ball.vy) > 2) ? ball.x : player.x;
+    const idealCam = target - canvas.width * 0.35;
+    cameraX += (idealCam - cameraX) * 0.08;
+    cameraX = Math.max(0, cameraX);
+
+    // Status
+    if (!ball.sunk) {
+        const dToBall = Math.abs(player.x - ball.x);
+        if (dToBall < HIT_RANGE && ball.onGround && ballIsSettled()) {
+            document.getElementById('statusText').textContent = 'Click & drag the ball to hit!';
+        } else if (!ballIsSettled()) {
+            document.getElementById('statusText').textContent = '';
+        }
+    }
+}
+
+// ==================== DRAWING ====================
+function draw() {
+    const W = canvas.width, H = canvas.height;
+    const level = levels[currentHole];
+    const baseY = H - 80 * S;
+
+    ctx.save();
+
+    // Sky gradient
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0, '#0d2137');
+    skyGrad.addColorStop(0.3, '#1a3a5c');
+    skyGrad.addColorStop(0.65, '#2d6a4f');
+    skyGrad.addColorStop(1, '#1a472a');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    const starSeed = [23, 67, 134, 201, 278, 345, 412, 489, 556, 623, 690, 45, 112, 179, 246, 313, 380, 447, 514, 581];
+    starSeed.forEach((sx, i) => {
+        const sy = 10 + (i * 37 + sx) % (H * 0.35);
+        const blink = 0.3 + 0.7 * Math.abs(Math.sin(gameTime * 0.01 + i));
+        ctx.globalAlpha = blink * 0.6;
+        ctx.beginPath();
+        ctx.arc(sx % W, sy, 1 + (i % 3) * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // Moon
+    ctx.fillStyle = 'rgba(255, 250, 220, 0.9)';
+    ctx.beginPath();
+    ctx.arc(W - 80, 50, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(240, 230, 190, 0.3)';
+    ctx.beginPath();
+    ctx.arc(W - 80, 50, 30, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Distant hills (parallax)
+    const hillOffset = cameraX * 0.15;
+    ctx.fillStyle = 'rgba(25, 60, 40, 0.6)';
+    ctx.beginPath();
+    ctx.moveTo(0, baseY);
+    for (let x = 0; x <= W; x += 2) {
+        const hx = x + hillOffset;
+        const hy = baseY - 40 - Math.sin(hx * 0.008) * 25 - Math.sin(hx * 0.003) * 40;
+        ctx.lineTo(x, hy);
+    }
+    ctx.lineTo(W, baseY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Closer hills
+    ctx.fillStyle = 'rgba(30, 75, 50, 0.5)';
+    ctx.beginPath();
+    ctx.moveTo(0, baseY);
+    for (let x = 0; x <= W; x += 2) {
+        const hx = x + cameraX * 0.3;
+        const hy = baseY - 20 - Math.sin(hx * 0.012 + 1) * 18 - Math.sin(hx * 0.005) * 25;
+        ctx.lineTo(x, hy);
+    }
+    ctx.lineTo(W, baseY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Clouds
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    const cloudOffset = cameraX * 0.2;
+    [100, 300, 550, 750, 950].forEach((cx, i) => {
+        const x = cx - cloudOffset + (i % 2) * 50;
+        const y = 40 + i * 18 + Math.sin(gameTime * 0.005 + i) * 3;
+        ctx.beginPath();
+        ctx.ellipse(x, y, 55 + i * 12, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(x + 30, y + 5, 35, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Camera transform
+    ctx.translate(-cameraX, 0);
+
+    // --- Draw terrain ---
+    level.terrain.forEach(t => {
+        const startY = baseY + t.y;
+        const endY = baseY + t.y + t.h;
+
+        // Earth layer
+        ctx.fillStyle = '#3d2810';
+        ctx.beginPath();
+        ctx.moveTo(t.x, startY + 12);
+        ctx.lineTo(t.x + t.w, endY + 12);
+        ctx.lineTo(t.x + t.w, H + 20);
+        ctx.lineTo(t.x, H + 20);
+        ctx.closePath();
+        ctx.fill();
+
+        // Dirt layer with subtle texture
+        ctx.fillStyle = '#5a3e1b';
+        ctx.beginPath();
+        ctx.moveTo(t.x, startY + 6);
+        ctx.lineTo(t.x + t.w, endY + 6);
+        ctx.lineTo(t.x + t.w, H + 20);
+        ctx.lineTo(t.x, H + 20);
+        ctx.closePath();
+        ctx.fill();
+
+        // Main grass
+        const grassGrad = ctx.createLinearGradient(0, startY - 5, 0, startY + 15);
+        grassGrad.addColorStop(0, '#3a9960');
+        grassGrad.addColorStop(0.3, '#2d7a4a');
+        grassGrad.addColorStop(1, '#1f5a35');
+        ctx.fillStyle = grassGrad;
+        ctx.beginPath();
+        ctx.moveTo(t.x, startY);
+        ctx.lineTo(t.x + t.w, endY);
+        ctx.lineTo(t.x + t.w, endY + 12);
+        ctx.lineTo(t.x, startY + 12);
+        ctx.closePath();
+        ctx.fill();
+
+        // Grass blades on top edge
+        ctx.strokeStyle = '#4ab06a';
+        ctx.lineWidth = 1.5;
+        for (let gx = t.x; gx < t.x + t.w; gx += 6 + Math.random() * 4) {
+            const progress = (gx - t.x) / t.w;
+            const gy = startY + t.h * progress;
+            const bladeH = 4 + Math.random() * 5;
+            const lean = Math.sin(gx * 0.3) * 1.2;
+            ctx.beginPath();
+            ctx.moveTo(gx, gy);
+            ctx.quadraticCurveTo(gx + lean, gy - bladeH * 0.6, gx + lean, gy - bladeH);
+            ctx.stroke();
+        }
+    });
+
+    // Platforms
+    (level.platforms || []).forEach(p => {
+        const py = baseY + (p.y || 0);
+        // Platform with depth
+        ctx.fillStyle = '#2d6a4f';
+        ctx.fillRect(p.x, py + 8, p.w, 22);
+        ctx.fillStyle = '#3a9960';
+        ctx.fillRect(p.x, py, p.w, 10);
+        ctx.fillStyle = '#4ab06a';
+        ctx.fillRect(p.x, py, p.w, 3);
+        // Grass on platform
+        ctx.strokeStyle = '#5cc07a';
+        ctx.lineWidth = 1;
+        for (let gx = p.x + 3; gx < p.x + p.w - 3; gx += 5) {
+            const lean = Math.sin(gx * 0.4) * 1;
+            ctx.beginPath();
+            ctx.moveTo(gx, py);
+            ctx.lineTo(gx + lean, py - 3 - (gx * 7 % 3));
+            ctx.stroke();
+        }
+    });
+
+    // Water
+    (level.water || []).forEach(w => {
+        const wy = baseY;
+        // Deep water
+        const waterGrad = ctx.createLinearGradient(0, wy - 8, 0, H);
+        waterGrad.addColorStop(0, 'rgba(30, 120, 220, 0.7)');
+        waterGrad.addColorStop(0.5, 'rgba(20, 80, 180, 0.8)');
+        waterGrad.addColorStop(1, 'rgba(10, 40, 100, 0.9)');
+        ctx.fillStyle = waterGrad;
+        ctx.fillRect(w.x, wy - 8, w.w, H - wy + 20);
+
+        // Animated waves on surface
+        ctx.strokeStyle = 'rgba(120, 200, 255, 0.4)';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            for (let wx = w.x; wx <= w.x + w.w; wx += 3) {
+                const waveY = wy - 5 + i * 8 + Math.sin(wx * 0.08 + gameTime * 0.05 + i * 2) * 2;
+                if (wx === w.x) ctx.moveTo(wx, waveY);
+                else ctx.lineTo(wx, waveY);
+            }
+            ctx.stroke();
+        }
+
+        // Surface shimmer
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        for (let i = 0; i < 4; i++) {
+            const sx = w.x + w.w * (0.15 + i * 0.22) + Math.sin(gameTime * 0.03 + i) * 5;
+            const sy = wy - 3 + Math.sin(gameTime * 0.04 + i * 1.5) * 2;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, 6, 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+
+    // Sand traps
+    (level.sand || []).forEach(s => {
+        const sy = getGroundY(s.x + s.w / 2) || baseY;
+        // Sand base
+        const sandGrad = ctx.createLinearGradient(s.x, sy - 4, s.x, sy + 5);
+        sandGrad.addColorStop(0, '#e8cb7a');
+        sandGrad.addColorStop(1, '#c4a55a');
+        ctx.fillStyle = sandGrad;
+        ctx.fillRect(s.x, sy - 4, s.w, 8);
+        // Sand texture dots
+        ctx.fillStyle = 'rgba(160, 130, 50, 0.4)';
+        for (let i = 0; i < 8; i++) {
+            const dx = s.x + 5 + (i * (s.w - 10) / 8) + Math.sin(i * 2.3) * 3;
+            const dy = sy - 1 + Math.sin(i * 1.7) * 2;
+            ctx.beginPath();
+            ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+
+    // --- Hole/flag ---
+    // Flag shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath();
+    ctx.ellipse(hole.x + 8, hole.y, 14, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Flag pole
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(hole.x, hole.y);
+    ctx.lineTo(hole.x, hole.y - 60);
+    ctx.stroke();
+
+    // Flag with wave
+    const flagWave = Math.sin(gameTime * 0.06) * 3;
+    ctx.fillStyle = '#c9a84c';
+    ctx.beginPath();
+    ctx.moveTo(hole.x, hole.y - 60);
+    ctx.quadraticCurveTo(hole.x + 14 + flagWave, hole.y - 53, hole.x + 25, hole.y - 50);
+    ctx.quadraticCurveTo(hole.x + 14 - flagWave, hole.y - 47, hole.x, hole.y - 40);
+    ctx.fill();
+
+    // "JHI" on flag
+    ctx.fillStyle = '#1a472a';
+    ctx.font = `bold ${7 * S}px Georgia`;
+    ctx.textAlign = 'center';
+    ctx.fillText('JHI', hole.x + 12, hole.y - 47);
+    ctx.textAlign = 'left';
+
+    // Hole (cup)
+    ctx.fillStyle = '#0a0a0a';
+    ctx.beginPath();
+    ctx.ellipse(hole.x, hole.y, hole.r, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Hole rim
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(hole.x, hole.y, hole.r, 6, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // --- Ball ---
+    if (ball.active && !ball.sunk) {
+        // Shadow
+        const bGround = getGroundY(ball.x);
+        if (bGround !== null) {
+            const shadowDist = Math.max(0, bGround - (ball.y + ball.r));
+            const shadowAlpha = Math.max(0.05, 0.3 - shadowDist * 0.003);
+            const shadowScale = Math.max(0.6, 1 - shadowDist * 0.005);
+            ctx.beginPath();
+            ctx.ellipse(ball.x, bGround, (ball.r + 2) * shadowScale, 3 * shadowScale, 0, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+            ctx.fill();
+        }
+        // Ball with better shading
+        const bGrad = ctx.createRadialGradient(ball.x - ball.r * 0.3, ball.y - ball.r * 0.3, ball.r * 0.1, ball.x, ball.y, ball.r);
+        bGrad.addColorStop(0, '#fff');
+        bGrad.addColorStop(0.4, '#f5f5f5');
+        bGrad.addColorStop(0.8, '#ddd');
+        bGrad.addColorStop(1, '#aaa');
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fillStyle = bGrad;
+        ctx.fill();
+        // Dimple dots
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        for (let a = 0; a < 6; a++) {
+            const da = a * Math.PI / 3 + gameTime * 0.01;
+            const dr = ball.r * 0.55;
+            ctx.beginPath();
+            ctx.arc(ball.x + Math.cos(da) * dr, ball.y + Math.sin(da) * dr, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // --- Aim line ---
+    if (aiming) {
+        const dx = aimStart.x - aimEnd.x;
+        const dy = aimStart.y - aimEnd.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const power = Math.min(dist / 8, MAX_HIT_POWER);
+        const angle = Math.atan2(dy, dx);
+        const lineLen = power * 5;
+
+        // Dotted trajectory preview
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y);
+        ctx.lineTo(ball.x + Math.cos(angle) * lineLen, ball.y + Math.sin(angle) * lineLen);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Power indicator
+        const pRatio = power / MAX_HIT_POWER;
+        const dotColor = pRatio < 0.4 ? '#4ade80' : pRatio < 0.7 ? '#fbbf24' : '#ef4444';
+        ctx.beginPath();
+        ctx.arc(ball.x + Math.cos(angle) * lineLen, ball.y + Math.sin(angle) * lineLen, 5, 0, Math.PI * 2);
+        ctx.fillStyle = dotColor;
+        ctx.fill();
+
+        // Power text
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${11 * S}px Georgia`;
+        ctx.fillText(Math.round(pRatio * 100) + '%', ball.x + Math.cos(angle) * lineLen + 10, ball.y + Math.sin(angle) * lineLen - 8);
+    }
+
+    // Mobile aim visualization
+    if (mobileHitMode) {
+        const dir = player.facing;
+        const power = mobileAimPower;
+        const angle = mobileAimAngle;
+        const endX = ball.x + Math.cos(angle) * power * 5 * dir;
+        const endY = ball.y + Math.sin(angle) * power * 5;
+
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = mobileAimPhase === 'angle' ? 'rgba(255,200,50,0.7)' : 'rgba(100,255,100,0.7)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Arrow tip
+        ctx.beginPath();
+        ctx.arc(endX, endY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = mobileAimPhase === 'angle' ? '#fbbf24' : '#4ade80';
+        ctx.fill();
+
+        // Power bar
+        if (mobileAimPhase === 'power') {
+            const barW = 60, barH = 8;
+            const bx = ball.x - barW / 2, by = ball.y - 30;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(bx, by, barW, barH);
+            const pRatio = power / MAX_HIT_POWER;
+            const barColor = pRatio < 0.4 ? '#4ade80' : pRatio < 0.7 ? '#fbbf24' : '#ef4444';
+            ctx.fillStyle = barColor;
+            ctx.fillRect(bx, by, barW * pRatio, barH);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bx, by, barW, barH);
+        }
+    }
+
+    // --- Player ---
+    drawPlayer();
+
+    // --- Particles ---
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+}
+
+function drawPlayer() {
+    const x = player.x;
+    const y = player.y;
+    const f = player.facing;
+    const H = player.h; // total height = 56
+    // Scale everything relative to player height
+    const u = H / 56; // unit scale
+
+    ctx.save();
+    ctx.translate(x, y);
+    if (f === -1) ctx.scale(-1, 1);
+
+    const legSwing = player.walking ? Math.sin(player.walkFrame * 4) * 7 : 0;
+
+    // Proportions: head ~16u, torso ~18u, legs ~22u = 56u total
+    const headTop = 0;
+    const headCenter = 8 * u;
+    const neckY = 16 * u;
+    const torsoTop = neckY;
+    const torsoBot = 34 * u;
+    const legTop = torsoBot;
+    const footY = H;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(0, H, 14 * u, 4 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // --- Legs (khaki pants) ---
+    ctx.lineCap = 'round';
+
+    // Left leg
+    ctx.strokeStyle = '#b09870';
+    ctx.lineWidth = 5 * u;
+    ctx.beginPath();
+    ctx.moveTo(-4 * u, legTop);
+    const lFootX = (-5 - legSwing) * u;
+    ctx.lineTo(lFootX, footY - 3 * u);
+    ctx.stroke();
+
+    // Right leg
+    ctx.beginPath();
+    ctx.moveTo(4 * u, legTop);
+    const rFootX = (5 + legSwing) * u;
+    ctx.lineTo(rFootX, footY - 3 * u);
+    ctx.stroke();
+
+    // Shoes
+    ctx.fillStyle = '#2a2a2a';
+    ctx.beginPath();
+    ctx.roundRect(lFootX - 3 * u, footY - 4 * u, 8 * u, 5 * u, 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(rFootX - 3 * u, footY - 4 * u, 8 * u, 5 * u, 2);
+    ctx.fill();
+
+    // --- Body (blue patterned button-up shirt) ---
+    const shirtGrad = ctx.createLinearGradient(-8 * u, torsoTop, 8 * u, torsoBot);
+    shirtGrad.addColorStop(0, '#4080b8');
+    shirtGrad.addColorStop(0.5, '#3a6fa8');
+    shirtGrad.addColorStop(1, '#2d5a8c');
+    ctx.fillStyle = shirtGrad;
+    ctx.beginPath();
+    ctx.moveTo(-9 * u, torsoTop);
+    ctx.lineTo(9 * u, torsoTop);
+    ctx.lineTo(8 * u, torsoBot);
+    ctx.lineTo(-8 * u, torsoBot);
+    ctx.closePath();
+    ctx.fill();
+
+    // Shirt pattern
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    [[-4,19],[2,19],[0,23],[4,23],[-4,27],[2,27],[-2,31],[4,31]].forEach(([dx,dy]) => {
+        ctx.beginPath();
+        ctx.arc(dx * u, dy * u, 1 * u, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Collar
+    ctx.strokeStyle = '#2d5a8c';
+    ctx.lineWidth = 1.5 * u;
+    ctx.beginPath();
+    ctx.moveTo(-5 * u, torsoTop);
+    ctx.lineTo(0, torsoTop + 2 * u);
+    ctx.lineTo(5 * u, torsoTop);
+    ctx.stroke();
+
+    // Button line
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 0.8 * u;
+    ctx.beginPath();
+    ctx.moveTo(0, torsoTop + 2 * u);
+    ctx.lineTo(0, torsoBot);
+    ctx.stroke();
+
+    // Belt
+    ctx.fillStyle = '#5a4a30';
+    ctx.fillRect(-8 * u, torsoBot - 2 * u, 16 * u, 3 * u);
+    ctx.fillStyle = '#c9a84c';
+    ctx.fillRect(-1.5 * u, torsoBot - 2 * u, 3 * u, 3 * u); // buckle
+
+    // --- Arms ---
+    ctx.lineCap = 'round';
+
+    // Left sleeve + arm
+    ctx.strokeStyle = '#3a6fa8';
+    ctx.lineWidth = 5 * u;
+    ctx.beginPath();
+    ctx.moveTo(-9 * u, torsoTop + 2 * u);
+    ctx.lineTo(-12 * u, torsoTop + 8 * u);
+    ctx.stroke();
+    ctx.strokeStyle = '#c4956a';
+    ctx.lineWidth = 3.5 * u;
+    ctx.beginPath();
+    ctx.moveTo(-12 * u, torsoTop + 8 * u);
+    ctx.lineTo(-13 * u, torsoBot - 2 * u);
+    ctx.stroke();
+
+    // Right sleeve + arm (holding club if near ball)
+    const nearBall = Math.abs(player.x - ball.x) < HIT_RANGE && ball.onGround;
+    ctx.strokeStyle = '#3a6fa8';
+    ctx.lineWidth = 5 * u;
+    ctx.beginPath();
+    ctx.moveTo(9 * u, torsoTop + 2 * u);
+    ctx.lineTo(12 * u, torsoTop + 8 * u);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#c4956a';
+    ctx.lineWidth = 3.5 * u;
+    if (nearBall) {
+        ctx.beginPath();
+        ctx.moveTo(12 * u, torsoTop + 8 * u);
+        ctx.lineTo(15 * u, torsoTop + 12 * u);
+        ctx.stroke();
+        // Golf club shaft
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 2 * u;
+        ctx.beginPath();
+        ctx.moveTo(15 * u, torsoTop + 12 * u);
+        ctx.lineTo(17 * u, footY - 2 * u);
+        ctx.stroke();
+        // Club head
+        ctx.fillStyle = '#888';
+        ctx.beginPath();
+        ctx.roundRect(14 * u, footY - 4 * u, 8 * u, 3.5 * u, 1.5);
+        ctx.fill();
+        // Grip
+        ctx.fillStyle = '#333';
+        ctx.fillRect(14 * u, torsoTop + 11 * u, 3 * u, 4 * u);
+    } else {
+        ctx.beginPath();
+        ctx.moveTo(12 * u, torsoTop + 8 * u);
+        ctx.lineTo(14 * u, torsoBot - 2 * u);
+        ctx.stroke();
+    }
+
+    // --- Head ---
+    ctx.fillStyle = '#c4956a';
+    ctx.beginPath();
+    ctx.ellipse(0, headCenter, 9 * u, 9.5 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears
+    ctx.fillStyle = '#b8876a';
+    ctx.beginPath();
+    ctx.ellipse(-9 * u, headCenter, 2 * u, 3 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(9 * u, headCenter, 2 * u, 3 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hair
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.ellipse(0, headTop + 2 * u, 8.5 * u, 5 * u, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(-9 * u, headTop + 2 * u, 2.5 * u, 5 * u);
+    ctx.fillRect(6.5 * u, headTop + 2 * u, 2.5 * u, 5 * u);
+
+    // Glasses
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5 * u;
+    ctx.strokeRect(-7.5 * u, headCenter - 3 * u, 6.5 * u, 4.5 * u);
+    ctx.strokeRect(1 * u, headCenter - 3 * u, 6.5 * u, 4.5 * u);
+    ctx.beginPath();
+    ctx.moveTo(-1 * u, headCenter - 1 * u);
+    ctx.lineTo(1 * u, headCenter - 1 * u);
+    ctx.stroke();
+    // Temple arms
+    ctx.beginPath();
+    ctx.moveTo(-7.5 * u, headCenter - 2 * u);
+    ctx.lineTo(-9.5 * u, headCenter - 2.5 * u);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(7.5 * u, headCenter - 2 * u);
+    ctx.lineTo(9.5 * u, headCenter - 2.5 * u);
+    ctx.stroke();
+    // Lens tint
+    ctx.fillStyle = 'rgba(150, 200, 255, 0.12)';
+    ctx.fillRect(-7.5 * u, headCenter - 3 * u, 6.5 * u, 4.5 * u);
+    ctx.fillRect(1 * u, headCenter - 3 * u, 6.5 * u, 4.5 * u);
+
+    // Eyes
+    ctx.fillStyle = '#2a2a2a';
+    ctx.beginPath();
+    ctx.arc(-4 * u, headCenter - 0.5 * u, 1.2 * u, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(4.5 * u, headCenter - 0.5 * u, 1.2 * u, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Nose
+    ctx.strokeStyle = '#a07858';
+    ctx.lineWidth = 0.8 * u;
+    ctx.beginPath();
+    ctx.moveTo(0, headCenter);
+    ctx.lineTo(0.5 * u, headCenter + 2.5 * u);
+    ctx.stroke();
+
+    // Smile
+    ctx.strokeStyle = '#8a5a3a';
+    ctx.lineWidth = 1 * u;
+    ctx.beginPath();
+    ctx.arc(0, headCenter + 3 * u, 3.5 * u, 0.1, Math.PI - 0.1);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// ==================== HOLE COMPLETE ====================
+function onHoleSunk() {
+    const par = levels[currentHole].par;
+    const diff = strokes - par;
+    scores.push(strokes);
+
+    let msg;
+    if (strokes === 1) msg = 'HOLE IN ONE!';
+    else if (diff <= -2) msg = 'Eagle!';
+    else if (diff === -1) msg = 'Birdie!';
+    else if (diff === 0) msg = 'Par!';
+    else if (diff === 1) msg = 'Bogey';
+    else if (diff === 2) msg = 'Double Bogey';
+    else msg = '+' + diff;
+
+    document.getElementById('holeMsg').textContent = msg;
+    document.getElementById('holeSummary').textContent =
+        `Hole ${currentHole + 1}: ${strokes} stroke${strokes !== 1 ? 's' : ''} (Par ${par})`;
+
+    const btn = document.getElementById('nextBtn');
+    btn.textContent = currentHole >= levels.length - 1 ? 'See Results' : 'Next Hole';
+
+    setTimeout(() => {
+        document.getElementById('holeOverlay').classList.remove('hidden');
+    }, 600);
+}
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+    document.getElementById('holeOverlay').classList.add('hidden');
+    if (currentHole >= levels.length - 1) {
+        showEnd();
+    } else {
+        currentHole++;
+        initHole();
+    }
+});
+
+function showEnd() {
+    const total = scores.reduce((a, b) => a + b, 0);
+    const totalPar = levels.reduce((a, l) => a + l.par, 0);
+    const diff = total - totalPar;
+    const diffStr = diff === 0 ? 'Even' : diff > 0 ? '+' + diff : '' + diff;
+    document.getElementById('endSummary').textContent =
+        `Total: ${total} strokes (${diffStr} | Par ${totalPar})`;
+    document.getElementById('endOverlay').classList.remove('hidden');
+}
+
+document.getElementById('replayBtn').addEventListener('click', () => {
+    document.getElementById('endOverlay').classList.add('hidden');
+    currentHole = 0;
+    scores = [];
+    initHole();
+});
+
+// ==================== GAME LOOP ====================
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+initHole();
+loop();
+</script>
+</body>
+</html>
