@@ -561,6 +561,11 @@ function update() {
             const bPlatY = getPlatformAt(ball.x, ball.y + ball.r, ball.vy);
             const bEffGround = bPlatY !== null ? bPlatY : bGroundY;
 
+            // If ball is rolling on ground, snap to terrain surface (handles downhill slopes)
+            if (ball.onGround && bEffGround !== null && ball.y + ball.r < bEffGround) {
+                ball.y = bEffGround - ball.r;
+            }
+
             if (bEffGround !== null && ball.y + ball.r >= bEffGround) {
                 ball.y = bEffGround - ball.r;
 
