@@ -219,7 +219,11 @@ const levels = [
             { x: 350, y: -40, w: 80 },
             { x: 470, y: -20, w: 80 }
         ],
-        water: [{ x: 350, w: 200 }, { x: 700, w: 100 }], sand: []
+        water: [{ x: 350, w: 200 }, { x: 700, w: 100 }], sand: [],
+        enemies: [
+            { x: 600, hp: 2, patrol: [550, 700] },
+            { x: 850, hp: 3, patrol: [800, 950] }
+        ]
     },
     { // Hole 6 - The Grand Finale
         par: 5,
@@ -235,7 +239,60 @@ const levels = [
         ],
         platforms: [{ x: 600, y: -50, w: 80 }],
         water: [{ x: 600, w: 100 }, { x: 900, w: 100 }],
-        sand: [{ x: 480, w: 80 }]
+        sand: [{ x: 480, w: 80 }],
+        enemies: [
+            { x: 500, hp: 2, patrol: [450, 600] },
+            { x: 800, hp: 3, patrol: [750, 900] },
+            { x: 1050, hp: 2, patrol: [1000, 1150] }
+        ]
+    },
+    { // Hole 7 - Storm: The Ridge
+        par: 4,
+        playerStart: { x: 60, y: 0 },
+        ballStart: { x: 180, y: 0 },
+        holePos: { x: 1000, y: -30 },
+        terrain: [
+            { x: 0, y: 0, w: 250, h: 0 },
+            { x: 250, y: 0, w: 100, h: -50 },
+            { x: 350, y: -50, w: 150, h: 0 },
+            { x: 600, y: -30, w: 150, h: 0 },
+            { x: 850, y: -30, w: 100, h: 0 },
+            { x: 950, y: -30, w: 50, h: 0 },
+            { x: 1000, y: -30, w: 300, h: 0 }
+        ],
+        platforms: [{ x: 500, y: -40, w: 80 }],
+        water: [{ x: 500, w: 100 }, { x: 750, w: 100 }],
+        sand: [],
+        enemies: [
+            { x: 400, hp: 4, patrol: [360, 490] },
+            { x: 1050, hp: 5, patrol: [1000, 1200] }
+        ]
+    },
+    { // Hole 8 - Storm: The Gauntlet
+        par: 5,
+        playerStart: { x: 40, y: 0 },
+        ballStart: { x: 160, y: 0 },
+        holePos: { x: 1200, y: -50 },
+        terrain: [
+            { x: 0, y: 0, w: 300, h: 0 },
+            { x: 300, y: 0, w: 150, h: -40 },
+            { x: 450, y: -40, w: 200, h: 0 },
+            { x: 750, y: -20, w: 150, h: 0 },
+            { x: 1000, y: -50, w: 100, h: 0 },
+            { x: 1100, y: -50, w: 50, h: 0 },
+            { x: 1150, y: -50, w: 300, h: 0 }
+        ],
+        platforms: [
+            { x: 650, y: -40, w: 80 },
+            { x: 900, y: -35, w: 80 }
+        ],
+        water: [{ x: 650, w: 100 }, { x: 1100, w: 50 }],
+        sand: [{ x: 500, w: 80 }],
+        enemies: [
+            { x: 500, hp: 4, patrol: [460, 640] },
+            { x: 800, hp: 5, patrol: [750, 890] },
+            { x: 1200, hp: 5, patrol: [1150, 1350] }
+        ]
     }
 ];
 
@@ -304,6 +361,128 @@ function getMaxHearts() { return SHIRT_TIERS[equipment.shirt].hearts; }
 function getMaxJumps() { return BOOT_TIERS[equipment.boots].maxJumps; }
 function getClubPower() { return CLUB_TIERS[equipment.club].power; }
 function getClubDamage() { return CLUB_TIERS[equipment.club].damage; }
+
+// ==================== WIND ====================
+let wind = { direction: 0, strength: 0 };
+
+function initWind() {
+    const tod = getTimeOfDay();
+    if (tod === 'storm') {
+        wind.direction = Math.random() < 0.5 ? -1 : 1;
+        wind.strength = 0.08 + Math.random() * 0.04;
+    } else {
+        wind.direction = 0;
+        wind.strength = 0;
+    }
+}
+
+// ==================== ENEMIES ====================
+let activeEnemies = [];
+let sandProjectiles = [];
+
+function initEnemies() {
+    const level = levels[currentHole];
+    const baseY = canvas.height - 80 * S;
+    activeEnemies = (level.enemies || []).map(e => {
+        const gy = getGroundY(e.x);
+        return {
+            x: e.x,
+            y: gy !== null ? gy : baseY,
+            hp: e.hp,
+            maxHp: e.hp,
+            patrol: e.patrol,
+            dir: 1,
+            speed: getTimeOfDay() === 'storm' ? 1.5 : 1,
+            throwCooldown: 120 + Math.random() * 60,
+            frame: 0,
+            dead: false,
+            deathTimer: 0
+        };
+    });
+    sandProjectiles = [];
+}
+
+function updateEnemies() {
+    const tod = getTimeOfDay();
+    const attackRange = 300;
+
+    activeEnemies.forEach(e => {
+        if (e.dead) {
+            e.deathTimer--;
+            return;
+        }
+
+        // Patrol
+        e.x += e.dir * e.speed;
+        if (e.x <= e.patrol[0]) e.dir = 1;
+        if (e.x >= e.patrol[1]) e.dir = -1;
+        e.frame += 0.05;
+
+        const gy = getGroundY(e.x);
+        if (gy !== null) e.y = gy;
+
+        // Throw sand
+        e.throwCooldown = Math.max(0, e.throwCooldown - 1);
+        const dist = Math.abs(player.x - e.x);
+        if (dist < attackRange && e.throwCooldown <= 0) {
+            const angle = Math.atan2(
+                (player.y + player.h / 2) - (e.y - 20),
+                player.x - e.x
+            );
+            const throwSpeed = 4;
+            sandProjectiles.push({
+                x: e.x,
+                y: e.y - 20,
+                vx: Math.cos(angle) * throwSpeed,
+                vy: Math.sin(angle) * throwSpeed - 2,
+                damage: tod === 'storm' ? 2 : 1
+            });
+            e.throwCooldown = 120 + Math.random() * 60;
+        }
+
+        // Ball collision
+        if (ball.active && !ball.sunk) {
+            const bdx = ball.x - e.x;
+            const bdy = ball.y - (e.y - 15);
+            const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+            if (bdist < 20 && (Math.abs(ball.vx) > 1 || Math.abs(ball.vy) > 1)) {
+                e.hp -= getClubDamage();
+                ball.vx *= 0.5;
+                ball.vy *= 0.5;
+                spawnParticles(e.x, e.y - 15, '#d4a853', 10, 3);
+                if (e.hp <= 0) {
+                    e.dead = true;
+                    e.deathTimer = 60;
+                    spawnParticles(e.x, e.y - 15, '#d4a853', 20, 5);
+                }
+            }
+        }
+    });
+
+    activeEnemies = activeEnemies.filter(e => !e.dead || e.deathTimer > 0);
+}
+
+function updateSandProjectiles() {
+    sandProjectiles.forEach(p => {
+        p.vy += GRAVITY * 0.5;
+        p.x += p.vx;
+        p.y += p.vy;
+
+        const dx = p.x - player.x;
+        const dy = p.y - (player.y + player.h / 2);
+        if (Math.sqrt(dx * dx + dy * dy) < 20) {
+            damagePlayer(p.damage);
+            p.hit = true;
+            spawnParticles(p.x, p.y, '#d4a853', 6, 2);
+        }
+
+        const gy = getGroundY(p.x);
+        if ((gy !== null && p.y > gy) || p.y > canvas.height + 20) {
+            p.hit = true;
+        }
+    });
+    sandProjectiles = sandProjectiles.filter(p => !p.hit);
+}
 
 function getGroundY(x) {
     const level = levels[currentHole];
@@ -451,6 +630,8 @@ function initHole() {
     player.hp = player.maxHp;
     player.jumpsLeft = getMaxJumps() === Infinity ? 99 : getMaxJumps();
     player.invincible = 0;
+    initEnemies();
+    initWind();
     updateHeartsDisplay();
     document.getElementById('coinDisplay').textContent = coins + ' coins';
 
@@ -680,6 +861,10 @@ function update() {
                 ball.vx -= ball.vx * drag;
                 ball.vy -= ball.vy * drag;
             }
+            // Wind force
+            if (wind.strength > 0) {
+                ball.vx += wind.direction * wind.strength;
+            }
         }
 
         ball.x += ball.vx;
@@ -811,6 +996,10 @@ function update() {
             }
         }
 
+        // --- Enemies ---
+        updateEnemies();
+        updateSandProjectiles();
+
         // Check hole
         const hDx = ball.x - hole.x;
         const hDy = (ball.y + ball.r) - hole.y;
@@ -864,7 +1053,8 @@ function update() {
 function getTimeOfDay() {
     if (currentHole <= 1) return 'day';
     if (currentHole <= 3) return 'afternoon';
-    return 'night';
+    if (currentHole <= 5) return 'night';
+    return 'storm';
 }
 
 function getTheme() {
@@ -906,6 +1096,25 @@ function getTheme() {
         platDark: '#2d6a40',
         platBlade: '#52a870',
         ambientTint: 'rgba(255, 140, 50, 0.06)',
+    };
+    if (tod === 'storm') return {
+        sky: ['#0a0f18', '#141c28', '#0d1520', '#1a3028', '#0d1a12'],
+        starAlpha: 0,
+        cloudAlpha: 0,
+        sunMoon: 'none',
+        sunY: 0,
+        hillFar: 'rgba(15, 35, 25, 0.6)',
+        hillNear: 'rgba(20, 45, 30, 0.5)',
+        grassTop: '#2a7a48',
+        grassMid: '#1d5a35',
+        grassBot: '#144028',
+        grassBlade: '#35904a',
+        dirt: '#4a3218',
+        earth: '#30200d',
+        platGrass: '#2a7a48',
+        platDark: '#1d5a35',
+        platBlade: '#40a558',
+        ambientTint: 'rgba(80, 120, 200, 0.04)',
     };
     return {
         sky: ['#0d2137', '#1a3a5c', '#1a3050', '#2d6a4f', '#1a472a'],
@@ -1325,6 +1534,9 @@ function draw() {
         ctx.stroke();
     });
 
+    // --- Enemies ---
+    drawEnemies();
+
     // --- Hole/flag ---
     // Flag shadow
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -1544,6 +1756,151 @@ function draw() {
     vigGrad.addColorStop(1, tod === 'night' ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.1)');
     ctx.fillStyle = vigGrad;
     ctx.fillRect(0, 0, W, H);
+
+    // Storm effects (rain, lightning, wind indicator)
+    drawStormEffects();
+}
+
+function drawEnemies() {
+    const tod = getTimeOfDay();
+    const isStorm = tod === 'storm';
+
+    activeEnemies.forEach(e => {
+        if (e.dead) {
+            ctx.globalAlpha = e.deathTimer / 60;
+            ctx.fillStyle = '#d4a853';
+            for (let i = 0; i < 5; i++) {
+                const ox = Math.sin(i * 1.3 + e.deathTimer * 0.1) * (60 - e.deathTimer);
+                const oy = -Math.abs(Math.cos(i * 0.9 + e.deathTimer * 0.15)) * (60 - e.deathTimer);
+                ctx.beginPath();
+                ctx.arc(e.x + ox, e.y - 10 + oy, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            return;
+        }
+
+        // Sandbag body
+        ctx.fillStyle = '#d4a853';
+        ctx.beginPath();
+        ctx.moveTo(e.x - 12, e.y);
+        ctx.lineTo(e.x - 14, e.y - 22);
+        ctx.quadraticCurveTo(e.x, e.y - 32, e.x + 14, e.y - 22);
+        ctx.lineTo(e.x + 12, e.y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Tied top
+        ctx.strokeStyle = '#8a6a30';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(e.x - 4, e.y - 28);
+        ctx.lineTo(e.x, e.y - 32);
+        ctx.lineTo(e.x + 4, e.y - 28);
+        ctx.stroke();
+
+        // Texture lines
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(e.x - 8, e.y - 8);
+        ctx.lineTo(e.x + 8, e.y - 8);
+        ctx.moveTo(e.x - 10, e.y - 16);
+        ctx.lineTo(e.x + 10, e.y - 16);
+        ctx.stroke();
+
+        // Legs
+        const legSwing = Math.sin(e.frame * 4) * 3;
+        ctx.strokeStyle = '#8a6a30';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(e.x - 5, e.y);
+        ctx.lineTo(e.x - 5 - legSwing, e.y + 8);
+        ctx.moveTo(e.x + 5, e.y);
+        ctx.lineTo(e.x + 5 + legSwing, e.y + 8);
+        ctx.stroke();
+
+        // Eyes
+        if (isStorm) {
+            // Red glowing eyes
+            const glow1 = ctx.createRadialGradient(e.x - 4, e.y - 18, 1, e.x - 4, e.y - 18, 6);
+            glow1.addColorStop(0, 'rgba(255, 0, 0, 0.8)');
+            glow1.addColorStop(1, 'rgba(255, 0, 0, 0)');
+            ctx.fillStyle = glow1;
+            ctx.beginPath();
+            ctx.arc(e.x - 4, e.y - 18, 6, 0, Math.PI * 2);
+            ctx.fill();
+            const glow2 = ctx.createRadialGradient(e.x + 4, e.y - 18, 1, e.x + 4, e.y - 18, 6);
+            glow2.addColorStop(0, 'rgba(255, 0, 0, 0.8)');
+            glow2.addColorStop(1, 'rgba(255, 0, 0, 0)');
+            ctx.fillStyle = glow2;
+            ctx.beginPath();
+            ctx.arc(e.x + 4, e.y - 18, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ff0000';
+        } else {
+            ctx.fillStyle = '#2a2a2a';
+        }
+        ctx.beginPath();
+        ctx.arc(e.x - 4, e.y - 18, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(e.x + 4, e.y - 18, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // HP bar
+        if (e.hp < e.maxHp) {
+            const barW = 24, barH = 3;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(e.x - barW / 2, e.y - 38, barW, barH);
+            ctx.fillStyle = '#4ade80';
+            ctx.fillRect(e.x - barW / 2, e.y - 38, barW * (e.hp / e.maxHp), barH);
+        }
+    });
+
+    // Sand projectiles
+    sandProjectiles.forEach(p => {
+        ctx.fillStyle = '#c4a040';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(200, 160, 60, 0.4)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function drawStormEffects() {
+    if (getTimeOfDay() !== 'storm') return;
+    const W = canvas.width, H = canvas.height;
+
+    // Rain
+    ctx.strokeStyle = 'rgba(180, 200, 255, 0.3)';
+    ctx.lineWidth = 1;
+    const rainAngle = wind.direction * 3;
+    for (let i = 0; i < 80; i++) {
+        const rx = (i * 17 + gameTime * 3 * (1 + (i % 3) * 0.3)) % (W + 100) - 50;
+        const ry = (i * 31 + gameTime * 8 * (1 + (i % 2) * 0.5)) % (H + 50) - 25;
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(rx + rainAngle, ry + 12 + (i % 4) * 2);
+        ctx.stroke();
+    }
+
+    // Lightning flash
+    if (Math.random() < 0.003) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    // Wind indicator
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = 'bold 14px Georgia';
+    ctx.textAlign = 'center';
+    const windArrow = wind.direction > 0 ? 'Wind >>>' : '<<< Wind';
+    ctx.fillText(windArrow, W / 2, 20);
+    ctx.textAlign = 'left';
 }
 
 function drawPlayer() {
