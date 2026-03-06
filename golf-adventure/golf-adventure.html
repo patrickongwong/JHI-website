@@ -140,8 +140,12 @@ function resize() {
     const vh = window.innerHeight * 0.58;
     canvas.width = Math.min(maxW, vw);
     canvas.height = Math.min(maxH, vh);
-    // Scale factor for element sizes
     S = canvas.width / 800;
+    // Update hole position to match new baseY after resize
+    if (typeof hole !== 'undefined' && typeof getGroundY === 'function') {
+        const hGY = getGroundY(hole.x);
+        if (hGY !== null) hole.y = hGY;
+    }
 }
 let S = 1;
 resize();
@@ -1468,7 +1472,7 @@ function draw() {
 
         // Dirt texture (rocks/pebbles)
         ctx.fillStyle = 'rgba(0,0,0,0.08)';
-        for (let rx = t.x + 8; rx < t.x + t.w - 8; rx += 15 + (rx * 13 % 12)) {
+        for (let rx = t.x + 8; rx < t.x + t.w - 8; rx += 30 + (rx * 13 % 12)) {
             const progress = (rx - t.x) / t.w;
             const ry = startY + t.h * progress + 14 + (rx * 7 % 20);
             if (ry < H) {
@@ -1492,14 +1496,14 @@ function draw() {
         ctx.closePath();
         ctx.fill();
 
-        // Grass blades on top edge (wind animation)
+        // Grass blades on top edge (wind animation, deterministic spacing)
         ctx.strokeStyle = theme.grassBlade;
         ctx.lineWidth = 1.5;
         const windPhase = gameTime * 0.015;
-        for (let gx = t.x; gx < t.x + t.w; gx += 6 + Math.random() * 4) {
+        for (let gx = t.x; gx < t.x + t.w; gx += 8) {
             const progress = (gx - t.x) / t.w;
             const gy = startY + t.h * progress;
-            const bladeH = 4 + Math.random() * 5;
+            const bladeH = 4 + ((gx * 7) % 5);
             const lean = Math.sin(gx * 0.3 + windPhase) * 1.8;
             ctx.beginPath();
             ctx.moveTo(gx, gy);
@@ -1641,54 +1645,57 @@ function draw() {
     drawEnemies();
 
     // --- Hole/flag ---
+    // Recompute hole visual Y from current baseY to avoid stale position after resize
+    const holeDrawY = getGroundY(hole.x) || baseY;
+
     // Green patch around hole (so it blends into terrain)
     ctx.fillStyle = theme.grassMid;
     ctx.beginPath();
-    ctx.ellipse(hole.x, hole.y + 3, hole.r + 6, 10, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x, holeDrawY + 3, hole.r + 6, 10, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = theme.grassTop;
     ctx.beginPath();
-    ctx.ellipse(hole.x, hole.y + 2, hole.r + 4, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x, holeDrawY + 2, hole.r + 4, 8, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Flag shadow on ground
     ctx.fillStyle = 'rgba(0,0,0,0.12)';
     ctx.beginPath();
-    ctx.ellipse(hole.x + 8, hole.y + 3, 14, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x + 8, holeDrawY + 3, 14, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Flag pole
     ctx.strokeStyle = '#ddd';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(hole.x, hole.y + 3);
-    ctx.lineTo(hole.x, hole.y - 57);
+    ctx.moveTo(hole.x, holeDrawY + 3);
+    ctx.lineTo(hole.x, holeDrawY - 57);
     ctx.stroke();
 
     // Flag with wave
     const flagWave = Math.sin(gameTime * 0.06) * 3;
     ctx.fillStyle = '#c9a84c';
     ctx.beginPath();
-    ctx.moveTo(hole.x, hole.y - 57);
-    ctx.quadraticCurveTo(hole.x + 14 + flagWave, hole.y - 50, hole.x + 25, hole.y - 47);
-    ctx.quadraticCurveTo(hole.x + 14 - flagWave, hole.y - 44, hole.x, hole.y - 37);
+    ctx.moveTo(hole.x, holeDrawY - 57);
+    ctx.quadraticCurveTo(hole.x + 14 + flagWave, holeDrawY - 50, hole.x + 25, holeDrawY - 47);
+    ctx.quadraticCurveTo(hole.x + 14 - flagWave, holeDrawY - 44, hole.x, holeDrawY - 37);
     ctx.fill();
 
     // Hole (cup) — sunk into the ground
     ctx.fillStyle = '#0a0a0a';
     ctx.beginPath();
-    ctx.ellipse(hole.x, hole.y + 3, hole.r, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x, holeDrawY + 3, hole.r, 5, 0, 0, Math.PI * 2);
     ctx.fill();
     // Hole rim
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.ellipse(hole.x, hole.y + 3, hole.r, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x, holeDrawY + 3, hole.r, 5, 0, 0, Math.PI * 2);
     ctx.stroke();
     // Inner shadow for depth
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(hole.x, hole.y + 4, hole.r - 3, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(hole.x, holeDrawY + 4, hole.r - 3, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // --- Ball ---
@@ -2928,11 +2935,11 @@ function drawShop() {
     // Wallpaper pattern (subtle diamond)
     ctx.strokeStyle = 'rgba(255,255,255,0.025)';
     ctx.lineWidth = 0.5;
-    for (let wy = 15; wy < wainscotTop; wy += 30) {
-        for (let wx = -cameraX % 30; wx < W + 30; wx += 30) {
+    for (let wy = 15; wy < wainscotTop; wy += 50) {
+        for (let wx = -cameraX % 50; wx < W + 50; wx += 50) {
             ctx.beginPath();
-            ctx.moveTo(wx, wy - 10); ctx.lineTo(wx + 10, wy);
-            ctx.lineTo(wx, wy + 10); ctx.lineTo(wx - 10, wy);
+            ctx.moveTo(wx, wy - 15); ctx.lineTo(wx + 15, wy);
+            ctx.lineTo(wx, wy + 15); ctx.lineTo(wx - 15, wy);
             ctx.closePath(); ctx.stroke();
         }
     }
@@ -3148,9 +3155,9 @@ function drawShop() {
     // Floor wood grain
     ctx.strokeStyle = 'rgba(80, 50, 20, 0.15)';
     ctx.lineWidth = 0.5;
-    for (let fy = baseY + 8; fy < H; fy += 12) {
+    for (let fy = baseY + 10; fy < H; fy += 20) {
         ctx.beginPath();
-        for (let fx = 0; fx < W + 60; fx += 3) {
+        for (let fx = 0; fx < W + 60; fx += 8) {
             const gy = fy + Math.sin(fx * 0.15 + fy) * 1.5;
             if (fx === 0) ctx.moveTo(fx, gy);
             else ctx.lineTo(fx, gy);
