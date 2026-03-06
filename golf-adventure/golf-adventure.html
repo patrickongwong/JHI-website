@@ -322,11 +322,17 @@ function saveProgress() {
 }
 
 // ==================== CHARACTER ====================
-let hasCompletedGame = localStorage.getItem('jhi-golf-completed') === 'true';
-let patrickUnlocked = localStorage.getItem('jhi-patrick-unlocked') === 'true';
-let activeCharacter = localStorage.getItem('jhi-active-character') || 'jj'; // 'jj' or 'patrick'
+// Session-only: reloading resets everything, Patrick must be unlocked each playthrough
+let hasCompletedGame = false;
+let patrickUnlocked = false;
+let activeCharacter = 'jj'; // 'jj' or 'patrick'
 let psychicMode = false; // when Patrick is active and player is "hitting"
 let psychicBallTarget = null; // {x, y} where cursor is pointing
+
+// Clear any stale character state from localStorage
+localStorage.removeItem('jhi-golf-completed');
+localStorage.removeItem('jhi-patrick-unlocked');
+localStorage.removeItem('jhi-active-character');
 
 // Cheat code system
 let cheatCodeMode = false;
@@ -334,9 +340,7 @@ let cheatCodeInput = '';
 let teleportAnim = null; // { x, y, frame, maxFrames }
 
 function saveCharacterState() {
-    localStorage.setItem('jhi-golf-completed', hasCompletedGame);
-    localStorage.setItem('jhi-patrick-unlocked', patrickUnlocked);
-    localStorage.setItem('jhi-active-character', activeCharacter);
+    // No-op: character state is session-only to prevent reload farming
 }
 
 const CLUB_TIERS = [
@@ -3646,7 +3650,6 @@ document.getElementById('nextBtn').addEventListener('click', () => {
 
 function showEnd() {
     hasCompletedGame = true;
-    localStorage.setItem('jhi-golf-completed', 'true');
 
     const total = scores.reduce((a, b) => a + b, 0);
     const totalPar = levels.reduce((a, l) => a + l.par, 0);
@@ -3765,6 +3768,12 @@ document.getElementById('replayBtn').addEventListener('click', () => {
     document.getElementById('endOverlay').classList.add('hidden');
     currentHole = 0;
     scores = [];
+    coins = 0;
+    equipment.club = 0; equipment.shaft = 0; equipment.boots = 0; equipment.shirt = 0;
+    patrickUnlocked = false;
+    activeCharacter = 'jj';
+    hasCompletedGame = false;
+    document.getElementById('coinDisplay').textContent = '0 coins';
     initHole();
 });
 
