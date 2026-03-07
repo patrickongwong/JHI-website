@@ -350,7 +350,10 @@ let gameTime = 0;
 // ==================== EQUIPMENT & ECONOMY ====================
 // Reset coins and equipment on every fresh load — no farming by reloading
 let coins = 0;
-let gameMode = 'play'; // 'play' or 'shop'
+let gameMode = 'play'; // 'play', 'shop', or 'cinematic'
+let cinematicMode = null; // null, 'space-transition', 'ending'
+let cinematicFrame = 0;
+let cinematicSkipped = false;
 
 const equipment = { club: 0, shaft: 0, boots: 0, shirt: 0 };
 
@@ -968,6 +971,10 @@ function initHole() {
 
 // ==================== INPUT ====================
 document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && gameMode === 'cinematic') {
+        cinematicSkipped = true;
+        return;
+    }
     if (cheatCodeMode) {
         e.preventDefault();
         if (e.key === 'Escape') {
@@ -3411,9 +3418,16 @@ function updateShop() {
             player.buyHeld = true;
             // Near exit door? Leave shop
             if (Math.abs(player.x - 1032) < 40) {
-                gameMode = 'play';
                 currentHole++;
-                initHole();
+                if (currentHole === 8) {
+                    cinematicMode = 'space-transition';
+                    cinematicFrame = 0;
+                    cinematicSkipped = false;
+                    gameMode = 'cinematic';
+                } else {
+                    gameMode = 'play';
+                    initHole();
+                }
                 return;
             }
             // Near shopkeeper? Open cheat code input
@@ -4384,7 +4398,10 @@ function onHoleSunk() {
 document.getElementById('nextBtn').addEventListener('click', () => {
     document.getElementById('holeOverlay').classList.add('hidden');
     if (currentHole >= levels.length - 1) {
-        showEnd();
+        cinematicMode = 'ending';
+        cinematicFrame = 0;
+        cinematicSkipped = false;
+        gameMode = 'cinematic';
     } else {
         // Enter shop before next hole
         gameMode = 'shop';
@@ -4521,9 +4538,603 @@ document.getElementById('replayBtn').addEventListener('click', () => {
     initHole();
 });
 
+// ==================== CINEMATICS ====================
+function updateCinematic() {
+    cinematicFrame++;
+    if (cinematicSkipped) {
+        endCinematic();
+        return;
+    }
+    if (cinematicMode === 'space-transition' && cinematicFrame > 480) {
+        endCinematic();
+    }
+    if (cinematicMode === 'ending' && cinematicFrame > 600) {
+        endCinematic();
+    }
+}
+
+function endCinematic() {
+    if (cinematicMode === 'space-transition') {
+        cinematicMode = null;
+        gameMode = 'play';
+        initHole();
+    } else if (cinematicMode === 'ending') {
+        cinematicMode = null;
+        showEnd();
+    }
+}
+
+function drawCinematic() {
+    const W = canvas.width, H = canvas.height;
+    const f = cinematicFrame;
+
+    if (cinematicMode === 'space-transition') {
+        drawSpaceTransition(W, H, f);
+    } else if (cinematicMode === 'ending') {
+        drawEndingCinematic(W, H, f);
+    }
+
+    // Skip hint
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '14px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText('Press ESC to skip', W - 20, H - 20);
+    ctx.textAlign = 'left';
+}
+
+function drawCinematicStars(W, H) {
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 50; i++) {
+        const sx = (Math.sin(i * 127.1 + i) * 0.5 + 0.5) * W;
+        const sy = (Math.cos(i * 311.7 + i) * 0.5 + 0.5) * H;
+        const sr = 0.5 + (i % 3) * 0.8;
+        ctx.globalAlpha = 0.5 + Math.sin(i * 0.7 + gameTime * 0.03) * 0.3;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+}
+
+function drawCinematicEarth(W, H, radius) {
+    const ex = W * 0.75, ey = H * 0.35;
+    const r = radius || H * 0.4;
+
+    // Ocean gradient
+    const grad = ctx.createRadialGradient(ex - r * 0.2, ey - r * 0.2, r * 0.1, ex, ey, r);
+    grad.addColorStop(0, '#4a90d9');
+    grad.addColorStop(0.5, '#2563a0');
+    grad.addColorStop(1, '#1a3a6a');
+    ctx.beginPath();
+    ctx.arc(ex, ey, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Green continents
+    ctx.fillStyle = '#2d8a4e';
+    // Continent 1
+    ctx.beginPath();
+    ctx.ellipse(ex - r * 0.2, ey - r * 0.15, r * 0.3, r * 0.2, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Continent 2
+    ctx.beginPath();
+    ctx.ellipse(ex + r * 0.25, ey + r * 0.2, r * 0.2, r * 0.15, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Continent 3
+    ctx.beginPath();
+    ctx.ellipse(ex - r * 0.3, ey + r * 0.3, r * 0.15, r * 0.1, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Atmosphere glow
+    ctx.strokeStyle = 'rgba(100,180,255,0.4)';
+    ctx.lineWidth = r * 0.08;
+    ctx.beginPath();
+    ctx.arc(ex, ey, r + r * 0.04, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+}
+
+function drawRocket(x, y, flipped) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (flipped) ctx.scale(1, -1);
+
+    // Body
+    ctx.fillStyle = '#eee';
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    ctx.lineTo(-12, 10);
+    ctx.lineTo(-12, 25);
+    ctx.lineTo(12, 25);
+    ctx.lineTo(12, 10);
+    ctx.closePath();
+    ctx.fill();
+
+    // Nose cone
+    ctx.fillStyle = '#cc3333';
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    ctx.lineTo(-8, -10);
+    ctx.lineTo(8, -10);
+    ctx.closePath();
+    ctx.fill();
+
+    // Window
+    ctx.fillStyle = '#4a90d9';
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Left fin
+    ctx.fillStyle = '#cc3333';
+    ctx.beginPath();
+    ctx.moveTo(-12, 15);
+    ctx.lineTo(-20, 28);
+    ctx.lineTo(-12, 25);
+    ctx.closePath();
+    ctx.fill();
+
+    // Right fin
+    ctx.beginPath();
+    ctx.moveTo(12, 15);
+    ctx.lineTo(20, 28);
+    ctx.lineTo(12, 25);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
+function drawSmallCharacter(x, y, armAngle) {
+    // Small golfer figure for cinematics
+    // Head
+    ctx.fillStyle = '#f5d0a0';
+    ctx.beginPath();
+    ctx.arc(x, y - 28, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body
+    ctx.fillStyle = '#4080b8';
+    ctx.fillRect(x - 5, y - 21, 10, 14);
+
+    // Legs
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(x - 4, y - 7, 3, 8);
+    ctx.fillRect(x + 1, y - 7, 3, 8);
+
+    // Arm
+    if (armAngle !== undefined) {
+        ctx.save();
+        ctx.translate(x + 4, y - 18);
+        ctx.rotate(armAngle);
+        ctx.fillStyle = '#f5d0a0';
+        ctx.fillRect(0, -2, 10, 3);
+        ctx.restore();
+    }
+}
+
+// ---- Space Transition Cinematic (~8 seconds = 480 frames) ----
+function drawSpaceTransition(W, H, f) {
+    ctx.save();
+
+    // Phase 1: Rumble (0-120)
+    if (f <= 120) {
+        const intensity = f / 120;
+
+        // Screen shake
+        const shakeX = (Math.random() - 0.5) * 6 * intensity;
+        const shakeY = (Math.random() - 0.5) * 6 * intensity;
+        ctx.translate(shakeX, shakeY);
+
+        // Storm sky gradient
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+        skyGrad.addColorStop(0, '#1a1a2e');
+        skyGrad.addColorStop(0.4, '#3a2a4a');
+        skyGrad.addColorStop(1, '#4a3a2a');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, W, H * 0.7);
+
+        // Green ground
+        ctx.fillStyle = '#2d5a1e';
+        ctx.fillRect(0, H * 0.7, W, H * 0.3);
+        ctx.fillStyle = '#3a7a28';
+        ctx.fillRect(0, H * 0.7, W, 4);
+
+        // Orange cracks in ground
+        ctx.strokeStyle = `rgba(255,140,0,${intensity})`;
+        ctx.lineWidth = 2;
+        for (let c = 0; c < 5; c++) {
+            ctx.beginPath();
+            let cx2 = W * 0.15 + c * W * 0.17;
+            let cy2 = H * 0.72;
+            ctx.moveTo(cx2, cy2);
+            for (let s = 0; s < 5; s++) {
+                cx2 += (Math.random() - 0.5) * 20;
+                cy2 += 10 + Math.random() * 15;
+                ctx.lineTo(cx2, cy2);
+            }
+            ctx.stroke();
+        }
+
+        // Character standing on ground
+        drawSmallCharacter(W * 0.5, H * 0.7);
+
+        // Darkening overlay
+        ctx.fillStyle = `rgba(0,0,0,${intensity * 0.5})`;
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    // Phase 2: Launch (120-300)
+    else if (f <= 300) {
+        const progress = (f - 120) / 180;
+
+        // Sky transition from storm to black
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+        skyGrad.addColorStop(0, `rgba(${Math.floor(26 * (1 - progress))},${Math.floor(26 * (1 - progress))},${Math.floor(46 * (1 - progress))},1)`);
+        skyGrad.addColorStop(1, `rgba(${Math.floor(74 * (1 - progress))},${Math.floor(58 * (1 - progress))},${Math.floor(42 * (1 - progress))},1)`);
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Clouds rushing downward
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        for (let i = 0; i < 8; i++) {
+            const cloudY = ((i * 120 + f * 4) % (H + 100)) - 50;
+            const cloudX = W * 0.1 + (i % 4) * W * 0.22;
+            ctx.beginPath();
+            ctx.ellipse(cloudX, cloudY, 60 + (i % 3) * 20, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Stars fading in
+        if (progress > 0.5) {
+            ctx.globalAlpha = (progress - 0.5) * 2;
+            drawCinematicStars(W, H);
+            ctx.globalAlpha = 1;
+        }
+
+        // Ground chunk rising
+        const chunkY = H * 0.7 - progress * H * 1.2;
+        ctx.fillStyle = '#5a3a1a';
+        ctx.beginPath();
+        ctx.ellipse(W * 0.5, chunkY + 20, 60, 25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Grass on top
+        ctx.fillStyle = '#3a7a28';
+        ctx.beginPath();
+        ctx.ellipse(W * 0.5, chunkY + 5, 55, 10, 0, 0, Math.PI);
+        ctx.fill();
+        ctx.fillStyle = '#2d5a1e';
+        ctx.fillRect(W * 0.5 - 55, chunkY - 5, 110, 12);
+
+        // Character on chunk
+        drawSmallCharacter(W * 0.5, chunkY - 5);
+    }
+
+    // Phase 3: Space (300-420)
+    else if (f <= 420) {
+        const progress = (f - 300) / 120;
+
+        // Black space
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+
+        // Stars
+        drawCinematicStars(W, H);
+
+        // Earth appearing and growing
+        const earthRadius = progress * H * 0.4;
+        if (earthRadius > 5) {
+            drawCinematicEarth(W, H, earthRadius);
+        }
+    }
+
+    // Phase 4: Landing (420-480)
+    else {
+        const progress = (f - 420) / 60;
+
+        // Space background
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+        drawCinematicStars(W, H);
+
+        // Full Earth
+        drawCinematicEarth(W, H, H * 0.4);
+
+        // Lunar surface rising from below
+        const lunarY = H - progress * H * 0.25;
+        ctx.fillStyle = '#8a8a7a';
+        ctx.fillRect(0, lunarY, W, H - lunarY + 10);
+        ctx.fillStyle = '#9a9a8a';
+        ctx.fillRect(0, lunarY, W, 3);
+
+        // Craters
+        ctx.fillStyle = '#7a7a6a';
+        ctx.beginPath(); ctx.arc(W * 0.2, lunarY + 20, 12, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(W * 0.6, lunarY + 30, 18, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(W * 0.85, lunarY + 15, 10, 0, Math.PI * 2); ctx.fill();
+
+        // Title text
+        const textAlpha = Math.min(1, progress * 2);
+        ctx.globalAlpha = textAlpha;
+        ctx.fillStyle = '#c9a84c';
+        ctx.font = `bold ${Math.floor(48 * S)}px Georgia`;
+        ctx.textAlign = 'center';
+        ctx.fillText('HOLE 9', W * 0.5, H * 0.35);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = `${Math.floor(22 * S)}px Georgia`;
+        ctx.fillText('THE FINAL FRONTIER', W * 0.5, H * 0.35 + 40 * S);
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'left';
+    }
+
+    ctx.restore();
+}
+
+// ---- Ending Cinematic (~10 seconds = 600 frames) ----
+function drawEndingCinematic(W, H, f) {
+    ctx.save();
+
+    // Phase 1: Victory (0-120)
+    if (f <= 120) {
+        // Space background
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+        drawCinematicStars(W, H);
+        drawCinematicEarth(W, H, H * 0.4);
+
+        // Lunar surface
+        const lunarY = H * 0.75;
+        ctx.fillStyle = '#8a8a7a';
+        ctx.fillRect(0, lunarY, W, H - lunarY);
+        ctx.fillStyle = '#9a9a8a';
+        ctx.fillRect(0, lunarY, W, 3);
+        ctx.fillStyle = '#7a7a6a';
+        ctx.beginPath(); ctx.arc(W * 0.3, lunarY + 20, 12, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(W * 0.7, lunarY + 25, 15, 0, Math.PI * 2); ctx.fill();
+
+        // Character celebrating with fist pump
+        const armBob = Math.sin(f * 0.15) * 0.5 - 1.2;
+        drawSmallCharacter(W * 0.5, lunarY, armBob);
+
+        // Celebration particles
+        const colors = ['#c9a84c', '#3a7a28', '#4a90d9'];
+        for (let i = 0; i < 15; i++) {
+            const px = W * 0.5 + Math.sin(i * 2.1 + f * 0.05) * (80 + i * 5);
+            const py = lunarY - 40 - Math.abs(Math.sin(i * 1.7 + f * 0.08)) * 80;
+            ctx.fillStyle = colors[i % 3];
+            ctx.globalAlpha = 0.7 + Math.sin(f * 0.1 + i) * 0.3;
+            ctx.beginPath();
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Phase 2: Spaceship arrives (120-240)
+    else if (f <= 240) {
+        const progress = (f - 120) / 120;
+
+        // Space background
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+        drawCinematicStars(W, H);
+        drawCinematicEarth(W, H, H * 0.4);
+
+        // Lunar surface
+        const lunarY = H * 0.75;
+        ctx.fillStyle = '#8a8a7a';
+        ctx.fillRect(0, lunarY, W, H - lunarY);
+        ctx.fillStyle = '#9a9a8a';
+        ctx.fillRect(0, lunarY, W, 3);
+
+        // Character waiting
+        drawSmallCharacter(W * 0.45, lunarY);
+
+        // Rocket descending
+        const rocketY = -50 + progress * (lunarY - 30);
+        drawRocket(W * 0.55, rocketY, false);
+
+        // Thruster flame
+        if (progress < 0.9) {
+            ctx.fillStyle = '#ff6600';
+            ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+            ctx.beginPath();
+            ctx.moveTo(W * 0.55 - 8, rocketY + 25);
+            ctx.lineTo(W * 0.55, rocketY + 45 + Math.random() * 10);
+            ctx.lineTo(W * 0.55 + 8, rocketY + 25);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+
+        // Door opens at end
+        if (progress > 0.9) {
+            ctx.fillStyle = '#333';
+            ctx.fillRect(W * 0.55 - 5, rocketY + 15, 10, 10);
+        }
+    }
+
+    // Phase 3: Liftoff (240-360)
+    else if (f <= 360) {
+        const progress = (f - 240) / 120;
+
+        // Space background
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+        drawCinematicStars(W, H);
+
+        // Earth growing larger (approaching)
+        const earthRadius = H * 0.4 + progress * H * 0.3;
+        drawCinematicEarth(W, H, earthRadius);
+
+        // Rocket flying toward Earth (flipped)
+        const rocketX = W * 0.5 - progress * W * 0.15;
+        const rocketY = H * 0.5 + progress * H * 0.1;
+        drawRocket(rocketX, rocketY, true);
+
+        // Thruster flame (on top since flipped)
+        ctx.fillStyle = '#ff6600';
+        ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(rocketX - 8, rocketY - 25);
+        ctx.lineTo(rocketX, rocketY - 45 - Math.random() * 10);
+        ctx.lineTo(rocketX + 8, rocketY - 25);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // Phase 4: Home scene (360-540)
+    else if (f <= 540) {
+        const progress = (f - 360) / 180;
+
+        // Beige walls
+        ctx.fillStyle = '#d4c4a0';
+        ctx.fillRect(0, 0, W, H);
+
+        // Brown floor
+        ctx.fillStyle = '#6b4226';
+        ctx.fillRect(0, H * 0.72, W, H * 0.28);
+        ctx.fillStyle = '#7a5030';
+        ctx.fillRect(0, H * 0.72, W, 3);
+
+        // Window showing night sky
+        ctx.fillStyle = '#555';
+        ctx.fillRect(W * 0.7, H * 0.1, W * 0.18, H * 0.3);
+        ctx.fillStyle = '#0a0a2e';
+        ctx.fillRect(W * 0.7 + 4, H * 0.1 + 4, W * 0.18 - 8, H * 0.3 - 8);
+        // Stars in window
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 8; i++) {
+            const sx = W * 0.72 + (i % 4) * W * 0.035;
+            const sy = H * 0.14 + Math.floor(i / 4) * H * 0.1;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Blue couch
+        ctx.fillStyle = '#3a5a8c';
+        ctx.fillRect(W * 0.2, H * 0.52, W * 0.35, H * 0.15);
+        // Couch back
+        ctx.fillStyle = '#2d4a7a';
+        ctx.fillRect(W * 0.18, H * 0.42, W * 0.04, H * 0.25);
+        ctx.fillRect(W * 0.18, H * 0.42, W * 0.39, H * 0.1);
+        // Armrest right
+        ctx.fillRect(W * 0.53, H * 0.42, W * 0.04, H * 0.25);
+
+        // Coffee table
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(W * 0.25, H * 0.68, W * 0.25, H * 0.04);
+        // Table legs
+        ctx.fillRect(W * 0.27, H * 0.72, W * 0.015, H * 0.04);
+        ctx.fillRect(W * 0.47, H * 0.72, W * 0.015, H * 0.04);
+
+        // Pizza box
+        ctx.fillStyle = '#c4a060';
+        ctx.fillRect(W * 0.3, H * 0.66, W * 0.1, H * 0.03);
+        // Pizza inside box
+        ctx.fillStyle = '#e8a030';
+        ctx.beginPath();
+        ctx.arc(W * 0.35, H * 0.67, W * 0.03, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#cc3333';
+        for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.arc(W * 0.35 + Math.cos(i * 1.3) * W * 0.015, H * 0.67 + Math.sin(i * 1.3) * W * 0.012, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // TV
+        ctx.fillStyle = '#222';
+        ctx.fillRect(W * 0.12, H * 0.15, W * 0.22, H * 0.22);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(W * 0.22, H * 0.37, W * 0.02, H * 0.05);
+        // TV screen showing golf
+        ctx.fillStyle = '#2d8a4e';
+        ctx.fillRect(W * 0.13, H * 0.16, W * 0.2, H * 0.2);
+        // Small flag on TV
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(W * 0.23, H * 0.32);
+        ctx.lineTo(W * 0.23, H * 0.22);
+        ctx.stroke();
+        ctx.fillStyle = '#cc3333';
+        ctx.fillRect(W * 0.23, H * 0.22, 8, 5);
+
+        // Character sitting on couch, relaxed
+        const charX = W * 0.38, charY = H * 0.52;
+        // Head
+        ctx.fillStyle = '#f5d0a0';
+        ctx.beginPath();
+        ctx.arc(charX, charY - 10, 8, 0, Math.PI * 2);
+        ctx.fill();
+        // Happy smile
+        ctx.strokeStyle = '#a0704a';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(charX, charY - 8, 4, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+        // Body on couch
+        ctx.fillStyle = '#4080b8';
+        ctx.fillRect(charX - 6, charY - 2, 12, 16);
+        // Legs
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(charX - 5, charY + 14, 4, 10);
+        ctx.fillRect(charX + 1, charY + 14, 4, 10);
+        // Arm with pizza slice
+        ctx.save();
+        ctx.translate(charX + 6, charY + 2);
+        ctx.rotate(-0.8);
+        ctx.fillStyle = '#f5d0a0';
+        ctx.fillRect(0, -2, 12, 3);
+        // Pizza slice in hand
+        ctx.fillStyle = '#e8a030';
+        ctx.beginPath();
+        ctx.moveTo(12, -4);
+        ctx.lineTo(18, -8);
+        ctx.lineTo(18, 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // "Home Sweet Home" text
+        const textAlpha = Math.min(1, progress * 2);
+        ctx.globalAlpha = textAlpha;
+        ctx.fillStyle = '#c9a84c';
+        ctx.font = `bold ${Math.floor(36 * S)}px Georgia`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Home Sweet Home', W * 0.5, H * 0.12);
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'left';
+    }
+
+    // Phase 5: Fade (540-600)
+    else {
+        const progress = (f - 540) / 60;
+
+        // Redraw home scene (frozen at last frame)
+        drawEndingCinematic(W, H, 540);
+
+        // Black overlay fading in
+        ctx.fillStyle = `rgba(0,0,0,${progress})`;
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    ctx.restore();
+}
+
 // ==================== GAME LOOP ====================
 function loop() {
-    if (gameMode === 'shop') {
+    if (gameMode === 'cinematic') {
+        updateCinematic();
+        drawCinematic();
+    } else if (gameMode === 'shop') {
         updateShop();
         drawShop();
     } else {
