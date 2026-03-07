@@ -4423,82 +4423,186 @@ function showEnd() {
 
 function generateScoreImage() {
     const c = document.createElement('canvas');
-    c.width = 600; c.height = 400;
+    c.width = 600; c.height = 480;
     const cx = c.getContext('2d');
 
-    // Background
-    cx.fillStyle = '#0a1628';
-    cx.fillRect(0, 0, 600, 400);
+    // Green gradient background
+    const bg = cx.createLinearGradient(0, 0, 0, 480);
+    bg.addColorStop(0, '#1a472a');
+    bg.addColorStop(1, '#0d2818');
+    cx.fillStyle = bg;
+    cx.fillRect(0, 0, 600, 480);
 
-    // Gold border
-    cx.strokeStyle = '#c9a84c';
-    cx.lineWidth = 4;
-    cx.strokeRect(12, 12, 576, 376);
+    // Gold double-line border
+    const gold = '#c9a84c';
+    cx.strokeStyle = gold;
+    cx.lineWidth = 3;
+    cx.strokeRect(4, 4, 592, 472);
+    cx.lineWidth = 1;
+    cx.strokeRect(12, 12, 576, 456);
+
+    // Corner dots
+    cx.fillStyle = gold;
+    const dotR = 4;
+    const corners = [[12, 12], [588, 12], [12, 468], [588, 468]];
+    corners.forEach(([x, y]) => {
+        cx.beginPath();
+        cx.arc(x, y, dotR, 0, Math.PI * 2);
+        cx.fill();
+    });
 
     // Title
-    cx.fillStyle = '#c9a84c';
+    cx.fillStyle = gold;
     cx.font = 'bold 28px Georgia, serif';
     cx.textAlign = 'center';
-    cx.fillText('JHI GOLF ADVENTURE', 300, 55);
+    cx.fillText('JHI GOLF ADVENTURE', 300, 52);
 
-    // Subtitle
-    cx.fillStyle = 'rgba(255,255,255,0.6)';
-    cx.font = '16px Georgia, serif';
-    cx.fillText('Scorecard', 300, 80);
-
-    // Hole headers
-    const colW = 55, startX = 55, rowY = 120;
-    cx.font = 'bold 14px Georgia, serif';
-    cx.fillStyle = 'rgba(255,255,255,0.5)';
-    cx.textAlign = 'center';
-    for (let i = 0; i < levels.length; i++) {
-        cx.fillText('H' + (i + 1), startX + i * colW, rowY);
-    }
-    cx.fillText('TOT', startX + levels.length * colW, rowY);
-
-    // Par row
-    cx.fillStyle = 'rgba(255,255,255,0.4)';
-    cx.font = '13px Georgia, serif';
-    for (let i = 0; i < levels.length; i++) {
-        cx.fillText(levels[i].par, startX + i * colW, rowY + 22);
-    }
-    const totalPar = levels.reduce((a, l) => a + l.par, 0);
-    cx.fillText(totalPar, startX + levels.length * colW, rowY + 22);
-
-    // Score row
-    cx.font = 'bold 18px Georgia, serif';
-    const total = scores.reduce((a, b) => a + b, 0);
-    for (let i = 0; i < scores.length; i++) {
-        const diff = scores[i] - levels[i].par;
-        cx.fillStyle = diff < 0 ? '#4CAF50' : diff === 0 ? '#c9a84c' : '#e57373';
-        cx.fillText(scores[i], startX + i * colW, rowY + 50);
-    }
-    cx.fillStyle = '#c9a84c';
-    cx.fillText(total, startX + levels.length * colW, rowY + 50);
-
-    // Divider
-    cx.strokeStyle = 'rgba(255,255,255,0.15)';
+    // Gold divider below title
+    cx.strokeStyle = gold;
     cx.lineWidth = 1;
     cx.beginPath();
-    cx.moveTo(40, 200);
-    cx.lineTo(560, 200);
+    cx.moveTo(40, 65);
+    cx.lineTo(560, 65);
     cx.stroke();
 
-    // Total score large
-    const diff = total - totalPar;
-    const diffStr = diff === 0 ? 'Even' : diff > 0 ? '+' + diff : '' + diff;
-    cx.fillStyle = '#fff';
-    cx.font = 'bold 36px Georgia, serif';
-    cx.fillText(total + ' Strokes', 300, 255);
+    // Scorecard layout
+    const colW = 50, startX = 65, labelX = 40;
+    const headerY = 95;
+    const rowH = 30;
 
-    cx.fillStyle = diff <= 0 ? '#4CAF50' : '#e57373';
-    cx.font = 'bold 24px Georgia, serif';
-    cx.fillText(diffStr + ' (Par ' + totalPar + ')', 300, 290);
+    // Header row background tint
+    cx.fillStyle = 'rgba(201,168,76,0.15)';
+    cx.fillRect(25, headerY - 18, 550, 24);
 
-    // Footer
-    cx.fillStyle = 'rgba(255,255,255,0.3)';
+    // Header row: HOLE | 1-9 | TOT
+    cx.font = 'bold 13px Georgia, serif';
+    cx.fillStyle = gold;
+    cx.textAlign = 'center';
+    cx.fillText('HOLE', labelX, headerY);
+    for (let i = 0; i < 9; i++) {
+        cx.fillText(i + 1, startX + i * colW, headerY);
+    }
+    cx.fillText('TOT', startX + 9 * colW, headerY);
+
+    // Par row
+    const parY = headerY + rowH;
     cx.font = '14px Georgia, serif';
-    cx.fillText('januarius.ph', 300, 370);
+    cx.fillStyle = 'rgba(255,255,255,0.5)';
+    cx.textAlign = 'center';
+    cx.fillText('Par', labelX, parY);
+    const totalPar = levels.reduce((a, l) => a + l.par, 0);
+    for (let i = 0; i < levels.length; i++) {
+        cx.fillText(levels[i].par, startX + i * colW, parY);
+    }
+    cx.fillText(totalPar, startX + 9 * colW, parY);
+
+    // Score row
+    const scoreY = parY + rowH;
+    const total = scores.reduce((a, b) => a + b, 0);
+    cx.font = 'bold 17px Georgia, serif';
+    cx.textAlign = 'center';
+    cx.fillStyle = 'rgba(255,255,255,0.5)';
+    cx.font = '14px Georgia, serif';
+    cx.fillText('Score', labelX, scoreY);
+    cx.font = 'bold 17px Georgia, serif';
+    for (let i = 0; i < scores.length; i++) {
+        const diff = scores[i] - levels[i].par;
+        cx.fillStyle = diff < 0 ? '#4CAF50' : diff === 0 ? gold : '#e57373';
+        cx.fillText(scores[i], startX + i * colW, scoreY);
+    }
+    cx.fillStyle = gold;
+    cx.fillText(total, startX + 9 * colW, scoreY);
+
+    // +/- row
+    const diffY = scoreY + rowH;
+    cx.font = '14px Georgia, serif';
+    cx.fillStyle = 'rgba(255,255,255,0.5)';
+    cx.textAlign = 'center';
+    cx.fillText('+/-', labelX, diffY);
+    for (let i = 0; i < scores.length; i++) {
+        const d = scores[i] - levels[i].par;
+        let label, color;
+        if (d === 0) { label = 'E'; color = gold; }
+        else if (d > 0) { label = '+' + d; color = '#e57373'; }
+        else { label = '' + d; color = '#4CAF50'; }
+        cx.fillStyle = color;
+        cx.fillText(label, startX + i * colW, diffY);
+    }
+    const totalDiff = total - totalPar;
+    if (totalDiff === 0) { cx.fillStyle = gold; cx.fillText('E', startX + 9 * colW, diffY); }
+    else if (totalDiff > 0) { cx.fillStyle = '#e57373'; cx.fillText('+' + totalDiff, startX + 9 * colW, diffY); }
+    else { cx.fillStyle = '#4CAF50'; cx.fillText('' + totalDiff, startX + 9 * colW, diffY); }
+
+    // Gold divider above bottom section
+    cx.strokeStyle = gold;
+    cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(40, diffY + 18);
+    cx.lineTo(560, diffY + 18);
+    cx.stroke();
+
+    // Total strokes large
+    cx.fillStyle = '#fff';
+    cx.font = 'bold 40px Georgia, serif';
+    cx.textAlign = 'center';
+    cx.fillText(total + ' Strokes', 300, diffY + 68);
+
+    // Over/Under text
+    const overUnderStr = totalDiff === 0 ? 'Even Par' : totalDiff > 0 ? '+' + totalDiff + ' Over Par' : Math.abs(totalDiff) + ' Under Par';
+    cx.fillStyle = totalDiff <= 0 ? '#4CAF50' : '#e57373';
+    cx.font = 'bold 22px Georgia, serif';
+    cx.fillText(overUnderStr, 300, diffY + 100);
+
+    // Achievement badges
+    const badges = [];
+    const hasHoleInOne = scores.some((s) => s === 1);
+    if (hasHoleInOne) badges.push('Hole-in-One!');
+    if (totalDiff <= -5) badges.push('Golf Legend');
+    else if (totalDiff < 0) badges.push('Under Par');
+
+    if (badges.length > 0) {
+        cx.font = 'bold 16px Georgia, serif';
+        const badgeY = diffY + 130;
+        const totalWidth = badges.length * 140 + (badges.length - 1) * 10;
+        let bx = 300 - totalWidth / 2 + 70;
+        badges.forEach((badge) => {
+            cx.fillStyle = 'rgba(201,168,76,0.2)';
+            cx.beginPath();
+            const bw = 130, bh = 28, br = 14;
+            cx.moveTo(bx - bw / 2 + br, badgeY - 18);
+            cx.lineTo(bx + bw / 2 - br, badgeY - 18);
+            cx.quadraticCurveTo(bx + bw / 2, badgeY - 18, bx + bw / 2, badgeY - 18 + br);
+            cx.lineTo(bx + bw / 2, badgeY - 18 + bh - br);
+            cx.quadraticCurveTo(bx + bw / 2, badgeY - 18 + bh, bx + bw / 2 - br, badgeY - 18 + bh);
+            cx.lineTo(bx - bw / 2 + br, badgeY - 18 + bh);
+            cx.quadraticCurveTo(bx - bw / 2, badgeY - 18 + bh, bx - bw / 2, badgeY - 18 + bh - br);
+            cx.lineTo(bx - bw / 2, badgeY - 18 + br);
+            cx.quadraticCurveTo(bx - bw / 2, badgeY - 18, bx - bw / 2 + br, badgeY - 18);
+            cx.closePath();
+            cx.fill();
+            cx.strokeStyle = gold;
+            cx.lineWidth = 1;
+            cx.stroke();
+            cx.fillStyle = gold;
+            cx.textAlign = 'center';
+            cx.fillText(badge, bx, badgeY);
+            bx += 150;
+        });
+    }
+
+    // Footer divider
+    cx.strokeStyle = gold;
+    cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(200, 448);
+    cx.lineTo(400, 448);
+    cx.stroke();
+
+    // Footer text
+    cx.fillStyle = gold;
+    cx.font = '14px Georgia, serif';
+    cx.textAlign = 'center';
+    cx.fillText('januarius.ph', 300, 466);
 
     return c;
 }
