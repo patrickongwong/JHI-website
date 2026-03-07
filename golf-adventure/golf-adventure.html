@@ -106,7 +106,7 @@
 <canvas id="gameCanvas"></canvas>
 
 <div class="controls-hint">
-    <span>A/D or Arrow Keys to move | W or Up to jump | Click &amp; drag near ball to hit</span>
+    <span>A/D or Arrow Keys to move | W or Up to jump | Space to hit</span>
     <span id="statusText"></span>
 </div>
 
@@ -701,6 +701,13 @@ document.addEventListener('keydown', e => {
         }
         return;
     }
+    if (e.key === ' ') {
+        e.preventDefault();
+        if (gameMode === 'play' && activeCharacter !== 'patrick') {
+            handleMobileHit();
+        }
+        return;
+    }
     keys[e.key.toLowerCase()] = true;
 });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
@@ -755,12 +762,14 @@ function handleMobileHit() {
         mobileAimDir = -1; // sweeping upward
         mobileAimPower = 10;
         btnHit.textContent = 'SET ANGLE';
+        document.getElementById('statusText').textContent = 'Press SPACE to set angle';
     } else if (mobileAimPhase === 'angle') {
         // Lock angle, start power phase
         mobileAimPhase = 'power';
         mobileAimPower = 3;
         mobileAimDir = 1;
         btnHit.textContent = 'SET POWER';
+        document.getElementById('statusText').textContent = 'Press SPACE to set power';
     } else if (mobileAimPhase === 'power') {
         // Execute hit
         const dir = player.facing;
@@ -774,6 +783,7 @@ function handleMobileHit() {
         spawnParticles(ball.x, ball.y, '#fff', 8, 3);
         mobileHitMode = false;
         btnHit.textContent = '\u26F3 HIT';
+        document.getElementById('statusText').textContent = '';
     }
 }
 
@@ -814,6 +824,9 @@ function startAim(pos) {
         document.getElementById('strokeNum').textContent = strokes;
         return;
     }
+    // JJ on desktop uses spacebar hit — skip mouse drag aim
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) return;
     if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
     if (!playerNearBall()) return;
     const dx = pos.x - ball.x, dy = pos.y - ball.y;
@@ -892,7 +905,7 @@ function update() {
         player.vx = 0;
     }
 
-    const jumpPressed = keys['w'] || keys['arrowup'] || keys[' '];
+    const jumpPressed = keys['w'] || keys['arrowup'];
     if (jumpPressed && !player.jumpHeld) {
         const maxJ = getMaxJumps();
         if (player.onGround || player.jumpsLeft > 0) {
