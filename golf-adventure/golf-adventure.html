@@ -2760,7 +2760,14 @@ function drawPlayer() {
     if (f === -1) ctx.scale(-1, 1);
     if (playerFlashing) ctx.globalAlpha = 0.3;
 
-    const legSwing = player.walking ? Math.sin(player.walkFrame * 4) * 7 : 0;
+    const isSpace = getTimeOfDay() === 'space' && gameMode === 'play';
+    if (isSpace && activeCharacter === 'jj') {
+        ctx.translate((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+    }
+
+    const legSwing = player.walking
+        ? Math.sin(player.walkFrame * 4) * 7
+        : (isSpace && activeCharacter === 'jj' ? Math.sin(gameTime * 0.15) * 3 : 0);
 
     // Proportions: head ~16u, torso ~22u, legs ~18u = 56u total
     const headTop = 0;
@@ -3009,13 +3016,32 @@ function drawPlayer() {
     ctx.fillRect(1 * u, headCenter - 3 * u, 6.5 * u, 4.5 * u);
 
     // Eyes
-    ctx.fillStyle = '#2a2a2a';
-    ctx.beginPath();
-    ctx.arc(-4 * u, headCenter - 0.5 * u, 1.2 * u, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(4.5 * u, headCenter - 0.5 * u, 1.2 * u, 0, Math.PI * 2);
-    ctx.fill();
+    if (isSpace && activeCharacter === 'jj') {
+        // Wide frightened eyes - white backgrounds
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(-4 * u, headCenter - 0.5 * u, 2.5 * u, 2 * u, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(4.5 * u, headCenter - 0.5 * u, 2.5 * u, 2 * u, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Tiny shrunken pupils
+        ctx.fillStyle = '#2a2a2a';
+        ctx.beginPath();
+        ctx.arc(-4 * u, headCenter - 0.5 * u, 0.6 * u, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(4.5 * u, headCenter - 0.5 * u, 0.6 * u, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        ctx.fillStyle = '#2a2a2a';
+        ctx.beginPath();
+        ctx.arc(-4 * u, headCenter - 0.5 * u, 1.2 * u, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(4.5 * u, headCenter - 0.5 * u, 1.2 * u, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
     // Nose
     ctx.strokeStyle = '#a07858';
@@ -3046,6 +3072,35 @@ function drawPlayer() {
             ctx.beginPath();
             ctx.arc(0, headCenter + 6 * u, 3 * u, Math.PI + 0.3, -0.3);
             ctx.stroke();
+        } else if (tod === 'space') {
+            // Space - terrified! Large O mouth, raised eyebrows, sweat drops
+            // Large open "O" mouth
+            ctx.fillStyle = '#5a2a1a';
+            ctx.beginPath();
+            ctx.ellipse(0, headCenter + 4.5 * u, 3 * u, 2.5 * u, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Raised eyebrows (higher than storm)
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 1.2 * u;
+            ctx.beginPath();
+            ctx.moveTo(-7 * u, headCenter - 6 * u);
+            ctx.quadraticCurveTo(-4 * u, headCenter - 8.5 * u, -1 * u, headCenter - 6 * u);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(1 * u, headCenter - 6 * u);
+            ctx.quadraticCurveTo(4 * u, headCenter - 8.5 * u, 7 * u, headCenter - 6 * u);
+            ctx.stroke();
+            // Animated sweat drops flying off head
+            const sweatPhase = Math.sin(gameTime * 0.1);
+            const sweatY1 = headTop - 2 * u + sweatPhase * 4 * u;
+            const sweatY2 = headTop - 1 * u + Math.sin(gameTime * 0.1 + 1.5) * 4 * u;
+            ctx.fillStyle = 'rgba(100, 180, 255, 0.8)';
+            ctx.beginPath();
+            ctx.ellipse(-8 * u, sweatY1, 1 * u, 1.5 * u, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(8 * u, sweatY2, 1 * u, 1.5 * u, 0, 0, Math.PI * 2);
+            ctx.fill();
         } else {
             // Storm - scared! Open mouth, eyebrows up
             // Scared open mouth
