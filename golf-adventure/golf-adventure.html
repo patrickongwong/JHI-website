@@ -1158,9 +1158,10 @@ function update() {
 
     // Status
     if (!ball.sunk) {
-        if (playerNearBall() && ball.onGround && ballIsSettled()) {
-            document.getElementById('statusText').textContent = 'Click & drag the ball to hit!';
-        } else if (ballIsSettled() && !playerNearBall()) {
+        if (playerNearBall() && ball.onGround && ballIsSettled() && !mobileHitMode) {
+            const hitMsg = activeCharacter === 'patrick' ? 'Click the ball to aim!' : 'Press SPACE to hit!';
+            document.getElementById('statusText').textContent = hitMsg;
+        } else if (ballIsSettled() && !playerNearBall() && !mobileHitMode) {
             document.getElementById('statusText').textContent = 'Walk closer to the ball';
         } else if (!ballIsSettled()) {
             document.getElementById('statusText').textContent = '';
