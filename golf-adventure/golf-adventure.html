@@ -46,18 +46,32 @@
         .gameboy-controls {
             display: none;
             position: fixed;
-            bottom: 10px;
+            bottom: 0;
             left: 0;
             right: 0;
-            padding: 10px 20px;
+            padding: 12px 20px 16px;
             justify-content: space-between;
             align-items: flex-end;
             z-index: 50;
             pointer-events: none;
+            background: linear-gradient(160deg, #1e5631 0%, #2d6a4f 100%);
+            border-top: 2px solid rgba(201,168,76,0.4);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+        }
+        .gameboy-controls::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                repeating-linear-gradient(88deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px),
+                repeating-linear-gradient(92deg, transparent, transparent 5px, rgba(0,0,0,0.02) 5px, rgba(0,0,0,0.02) 6px);
+            pointer-events: none;
+            border-radius: inherit;
         }
         @media (pointer: coarse) {
             .gameboy-controls { display: flex; }
             .controls-hint { display: none; }
+            body { justify-content: flex-start; padding-top: 5px; }
         }
         /* D-pad */
         .dpad {
@@ -74,12 +88,28 @@
             justify-content: center;
             background: #0d2818;
             color: #c9a84c;
-            font-size: 1.2rem;
+            font-size: 0;
+            position: relative;
             border: 1px solid rgba(201,168,76,0.3);
             -webkit-tap-highlight-color: transparent;
             user-select: none;
         }
-        .dpad-btn:active { background: #c9a84c; color: #0d2818; }
+        .dpad-btn::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+        }
+        .dpad-up::after { border-bottom-color: #c9a84c; border-top: 0; margin-top: -4px; }
+        .dpad-down::after { border-top-color: #c9a84c; border-bottom: 0; margin-bottom: -4px; }
+        .dpad-left::after { border-right-color: #c9a84c; border-left: 0; margin-left: -4px; }
+        .dpad-right::after { border-left-color: #c9a84c; border-right: 0; margin-right: -4px; }
+        .dpad-btn:active { background: #c9a84c; }
+        .dpad-up:active::after { border-bottom-color: #0d2818; }
+        .dpad-down:active::after { border-top-color: #0d2818; }
+        .dpad-left:active::after { border-right-color: #0d2818; }
+        .dpad-right:active::after { border-left-color: #0d2818; }
         .dpad-up { grid-column: 2; grid-row: 1; border-radius: 8px 8px 0 0; }
         .dpad-left { grid-column: 1; grid-row: 2; border-radius: 8px 0 0 8px; }
         .dpad-center {
@@ -204,7 +234,8 @@ const ctx = canvas.getContext('2d');
 function resize() {
     const maxW = 1200, maxH = 600;
     const vw = window.innerWidth * 0.96;
-    const vh = window.innerHeight * 0.58;
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const vh = window.innerHeight * (isMobile ? 0.42 : 0.58);
     canvas.width = Math.min(maxW, vw);
     canvas.height = Math.min(maxH, vh);
     // Scale factor for element sizes
@@ -2854,13 +2885,6 @@ function drawPlayer() {
     ctx.translate(x, y);
     if (f === -1) ctx.scale(-1, 1);
     if (playerFlashing) ctx.globalAlpha = 0.3;
-    if (player.crouching) {
-        // Squish vertically, anchor feet at bottom
-        ctx.translate(0, H);
-        ctx.scale(1, 0.6);
-        ctx.translate(0, -H);
-    }
-
     const isSpace = getTimeOfDay() === 'space' && gameMode === 'play';
     if (isSpace && activeCharacter === 'jj') {
         ctx.translate((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
@@ -2885,6 +2909,104 @@ function drawPlayer() {
 
     if (activeCharacter === 'patrick') {
         drawPatrickBody(u, headTop, headCenter, neckY, torsoTop, torsoBot, legTop, footY, H, legSwing, lFootX, rFootX, nearBall);
+    } else {
+
+    if (player.crouching) {
+        // Crouched JJ - lower to ground, bent knees, head ducked
+        const cu = 1; // use full scale units (player.h is already reduced to 30)
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(0, H, 16 * cu, 4 * cu, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bent legs (spread wider, knees bent)
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#b09870';
+        ctx.lineWidth = 5 * cu;
+        // Left leg - bent at knee
+        ctx.beginPath();
+        ctx.moveTo(-6 * cu, H - 10 * cu);
+        ctx.lineTo(-12 * cu, H - 4 * cu); // knee out
+        ctx.lineTo(-8 * cu, H); // foot
+        ctx.stroke();
+        // Right leg
+        ctx.beginPath();
+        ctx.moveTo(6 * cu, H - 10 * cu);
+        ctx.lineTo(12 * cu, H - 4 * cu);
+        ctx.lineTo(8 * cu, H);
+        ctx.stroke();
+
+        // Shoes
+        ctx.fillStyle = BOOT_TIERS[equipment.boots].color;
+        ctx.beginPath();
+        ctx.roundRect(-11 * cu, H - 3 * cu, 8 * cu, 4 * cu, 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.roundRect(5 * cu, H - 3 * cu, 8 * cu, 4 * cu, 2);
+        ctx.fill();
+
+        // Body (shirt - hunched forward, shorter torso)
+        const shirtColors = SHIRT_TIERS[equipment.shirt].colors;
+        const shirtGrad = ctx.createLinearGradient(-8 * cu, H - 24 * cu, 8 * cu, H - 10 * cu);
+        shirtGrad.addColorStop(0, shirtColors[0]);
+        shirtGrad.addColorStop(0.5, shirtColors[1]);
+        shirtGrad.addColorStop(1, shirtColors[2]);
+        ctx.fillStyle = shirtGrad;
+        ctx.beginPath();
+        ctx.moveTo(-10 * cu, H - 22 * cu);
+        ctx.lineTo(10 * cu, H - 22 * cu);
+        ctx.lineTo(9 * cu, H - 10 * cu);
+        ctx.lineTo(-9 * cu, H - 10 * cu);
+        ctx.closePath();
+        ctx.fill();
+
+        // Belt
+        ctx.fillStyle = '#5a4a30';
+        ctx.fillRect(-9 * cu, H - 12 * cu, 18 * cu, 3 * cu);
+        ctx.fillStyle = '#c9a84c';
+        ctx.fillRect(-1.5 * cu, H - 12 * cu, 3 * cu, 3 * cu);
+
+        // Arms hanging/bracing (skin color, hanging down to knees)
+        ctx.strokeStyle = '#c4956a';
+        ctx.lineWidth = 3.5 * cu;
+        ctx.beginPath();
+        ctx.moveTo(-10 * cu, H - 20 * cu);
+        ctx.lineTo(-14 * cu, H - 8 * cu);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(10 * cu, H - 20 * cu);
+        ctx.lineTo(14 * cu, H - 8 * cu);
+        ctx.stroke();
+
+        // Head (ducked down, closer to body)
+        ctx.fillStyle = '#c4956a';
+        ctx.beginPath();
+        ctx.ellipse(0, H - 26 * cu, 8 * cu, 7 * cu, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hair
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.ellipse(0, H - 30 * cu, 7.5 * cu, 4 * cu, 0, Math.PI, Math.PI * 2);
+        ctx.fill();
+
+        // Glasses
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.2 * cu;
+        ctx.strokeRect(-7 * cu, H - 27 * cu, 6 * cu, 4 * cu);
+        ctx.strokeRect(1 * cu, H - 27 * cu, 6 * cu, 4 * cu);
+
+        // Eyes (looking down)
+        ctx.fillStyle = '#2a2a2a';
+        ctx.beginPath();
+        ctx.arc(-4 * cu, H - 25 * cu, 1 * cu, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(4 * cu, H - 25 * cu, 1 * cu, 0, Math.PI * 2);
+        ctx.fill();
+
     } else {
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
@@ -3223,6 +3345,8 @@ function drawPlayer() {
         }
     }
 
+    } // end JJ crouching else (standing)
+
     } // end JJ character
 
     if (playerFlashing) ctx.globalAlpha = 1;
@@ -3230,6 +3354,101 @@ function drawPlayer() {
 }
 
 function drawPatrickBody(u, headTop, headCenter, neckY, torsoTop, torsoBot, legTop, footY, H, legSwing, lFootX, rFootX, nearBall) {
+    if (player.crouching) {
+        const cu = 1;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(0, H, 16 * cu, 4 * cu, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bent legs (dark jeans)
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#2a2a3a';
+        ctx.lineWidth = 5 * cu;
+        ctx.beginPath();
+        ctx.moveTo(-6 * cu, H - 10 * cu);
+        ctx.lineTo(-12 * cu, H - 4 * cu);
+        ctx.lineTo(-8 * cu, H);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(6 * cu, H - 10 * cu);
+        ctx.lineTo(12 * cu, H - 4 * cu);
+        ctx.lineTo(8 * cu, H);
+        ctx.stroke();
+
+        // Sneakers
+        ctx.fillStyle = '#eee';
+        ctx.beginPath();
+        ctx.roundRect(-11 * cu, H - 3 * cu, 8 * cu, 4 * cu, 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.roundRect(5 * cu, H - 3 * cu, 8 * cu, 4 * cu, 2);
+        ctx.fill();
+
+        // Body (dark purple polo, hunched)
+        const shirtGrad = ctx.createLinearGradient(-8 * cu, H - 24 * cu, 8 * cu, H - 10 * cu);
+        shirtGrad.addColorStop(0, '#3a2a5a');
+        shirtGrad.addColorStop(0.5, '#2d2050');
+        shirtGrad.addColorStop(1, '#1a1040');
+        ctx.fillStyle = shirtGrad;
+        ctx.beginPath();
+        ctx.moveTo(-10 * cu, H - 22 * cu);
+        ctx.lineTo(10 * cu, H - 22 * cu);
+        ctx.lineTo(9 * cu, H - 10 * cu);
+        ctx.lineTo(-9 * cu, H - 10 * cu);
+        ctx.closePath();
+        ctx.fill();
+
+        // Belt
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(-9 * cu, H - 12 * cu, 18 * cu, 3 * cu);
+
+        // Arms
+        ctx.strokeStyle = '#e8c89e';
+        ctx.lineWidth = 3.5 * cu;
+        ctx.beginPath();
+        ctx.moveTo(-10 * cu, H - 20 * cu);
+        ctx.lineTo(-14 * cu, H - 8 * cu);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(10 * cu, H - 20 * cu);
+        ctx.lineTo(14 * cu, H - 8 * cu);
+        ctx.stroke();
+
+        // Head (ducked)
+        ctx.fillStyle = '#e8c89e';
+        ctx.beginPath();
+        ctx.ellipse(0, H - 26 * cu, 8 * cu, 7 * cu, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hair (slicked back, dark)
+        ctx.fillStyle = '#1a1a2a';
+        ctx.beginPath();
+        ctx.ellipse(0, H - 30 * cu, 7.5 * cu, 4 * cu, 0, Math.PI, Math.PI * 2);
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = '#2a2a2a';
+        ctx.beginPath();
+        ctx.arc(-3.5 * cu, H - 25.5 * cu, 1 * cu, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(3.5 * cu, H - 25.5 * cu, 1 * cu, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Slight frown (concentrating)
+        ctx.strokeStyle = '#a07858';
+        ctx.lineWidth = 0.8 * cu;
+        ctx.beginPath();
+        ctx.moveTo(-2 * cu, H - 22 * cu);
+        ctx.lineTo(2 * cu, H - 22 * cu);
+        ctx.stroke();
+
+        return; // Skip the rest of drawPatrickBody
+    }
+
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.beginPath();
