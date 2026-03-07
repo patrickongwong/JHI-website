@@ -445,6 +445,14 @@ function initWind() {
 let activeEnemies = [];
 let sandProjectiles = [];
 
+// Asteroids
+let activeAsteroids = [];
+
+// Boss
+let boss = null;
+let bossProjectiles = [];
+let bossShockwave = null;
+
 function initEnemies() {
     const level = levels[currentHole];
     const baseY = canvas.height - 80 * S;
@@ -547,6 +555,217 @@ function updateSandProjectiles() {
         }
     });
     sandProjectiles = sandProjectiles.filter(p => !p.hit);
+}
+
+function updateBoss() {
+    if (!boss || boss.dead) {
+        if (boss && boss.dead) {
+            boss.deathTimer--;
+            if (boss.deathTimer <= 0) boss = null;
+        }
+        // Update boss projectiles even after death
+        bossProjectiles.forEach(p => {
+            p.vy += getGravity() * 0.5;
+            p.x += p.vx;
+            p.y += p.vy;
+            const dx = p.x - player.x;
+            const dy = p.y - (player.y + player.h / 2);
+            if (Math.sqrt(dx * dx + dy * dy) < 20) {
+                damagePlayer(p.damage);
+                p.hit = true;
+                spawnParticles(p.x, p.y, p.type === 'boulder' ? '#888' : '#d4a853', 6, 2);
+            }
+            const gy = getGroundY(p.x);
+            if ((gy !== null && p.y > gy) || p.y > canvas.height + 20) {
+                p.hit = true;
+                if (p.type === 'boulder') {
+                    spawnParticles(p.x, p.y, '#888', 10, 4);
+                }
+            }
+        });
+        bossProjectiles = bossProjectiles.filter(p => !p.hit);
+        // Shockwave update
+        if (bossShockwave) {
+            bossShockwave.leftX -= bossShockwave.speed;
+            bossShockwave.rightX += bossShockwave.speed;
+            bossShockwave.timer--;
+            if (!bossShockwave.hitPlayer && player.onGround) {
+                if (player.x >= bossShockwave.leftX && player.x <= bossShockwave.rightX) {
+                    damagePlayer(2);
+                    bossShockwave.hitPlayer = true;
+                }
+            }
+            if (bossShockwave.timer <= 0) bossShockwave = null;
+        }
+        return;
+    }
+
+    // Attack timer
+    boss.attackTimer--;
+
+    if (boss.attackTimer <= 0 && boss.attackPhase === 'idle') {
+        const attack = boss.attackCycle[boss.attackIndex % boss.attackCycle.length];
+        boss.attackPhase = attack;
+        boss.windupTimer = 0;
+
+        if (attack === 'barrage') {
+            // Fire 3 sand projectiles in fan spread
+            const baseAngle = Math.atan2(
+                (player.y + player.h / 2) - (boss.y - 25),
+                player.x - boss.x
+            );
+            [-0.3, 0, 0.3].forEach(offset => {
+                const angle = baseAngle + offset;
+                bossProjectiles.push({
+                    x: boss.x,
+                    y: boss.y - 25,
+                    vx: Math.cos(angle) * 5,
+                    vy: Math.sin(angle) * 5 - 2,
+                    damage: 2,
+                    type: 'sand'
+                });
+            });
+            boss.attackTimer = 120;
+            boss.attackPhase = 'idle';
+            boss.attackIndex++;
+        } else if (attack === 'slam') {
+            boss.windupTimer = 30;
+            boss.slamY = boss.y;
+            boss.slamActive = false;
+        } else if (attack === 'boulder') {
+            boss.windupTimer = 60;
+        }
+    }
+
+    // Slam windup and execution
+    if (boss.attackPhase === 'slam') {
+        if (boss.windupTimer > 0) {
+            boss.windupTimer--;
+            boss.y = boss.slamY - (30 - boss.windupTimer) * 1.5; // Rise up
+        } else if (!boss.slamActive) {
+            boss.slamActive = true;
+            boss.y = boss.slamY; // Slam down
+            // Create shockwave
+            bossShockwave = {
+                leftX: boss.x,
+                rightX: boss.x,
+                speed: 5,
+                timer: 60,
+                hitPlayer: false,
+                originX: boss.x
+            };
+            // Knock ball away if close
+            if (ball.active && !ball.sunk) {
+                const bdx = ball.x - boss.x;
+                const bdy = ball.y - boss.y;
+                const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+                if (bdist < 100) {
+                    const nx = bdx / (bdist || 1);
+                    const ny = bdy / (bdist || 1);
+                    ball.vx += nx * 6;
+                    ball.vy += ny * 4 - 3;
+                }
+            }
+            spawnParticles(boss.x, boss.y, '#d4a853', 15, 5);
+            boss.attackTimer = 150;
+            boss.attackPhase = 'idle';
+            boss.attackIndex++;
+        }
+    }
+
+    // Boulder windup and execution
+    if (boss.attackPhase === 'boulder') {
+        boss.windupTimer--;
+        if (boss.windupTimer <= 0) {
+            const angle = Math.atan2(
+                (player.y + player.h / 2) - (boss.y - 25),
+                player.x - boss.x
+            );
+            bossProjectiles.push({
+                x: boss.x,
+                y: boss.y - 25,
+                vx: Math.cos(angle) * 3,
+                vy: Math.sin(angle) * 3 - 2,
+                damage: 3,
+                type: 'boulder',
+                radius: 12
+            });
+            boss.attackTimer = 150;
+            boss.attackPhase = 'idle';
+            boss.attackIndex++;
+        }
+    }
+
+    // Ball collision with boss
+    if (ball.active && !ball.sunk) {
+        const bdx = ball.x - boss.x;
+        const bdy = ball.y - (boss.y - 25);
+        const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+        if (bdist < 35 && (Math.abs(ball.vx) > 1 || Math.abs(ball.vy) > 1)) {
+            boss.hp -= getClubDamage();
+            // Bounce ball back (reflect using normal vector)
+            const nx = bdx / (bdist || 1);
+            const ny = bdy / (bdist || 1);
+            const dot = ball.vx * nx + ball.vy * ny;
+            const spd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            ball.vx = (ball.vx - 2 * dot * nx) * 0.7;
+            ball.vy = (ball.vy - 2 * dot * ny) * 0.7;
+            spawnParticles(boss.x, boss.y - 25, '#d4a853', 10, 3);
+
+            if (boss.hp <= 0) {
+                boss.dead = true;
+                boss.deathTimer = 90;
+                // Massive particle burst
+                spawnParticles(boss.x, boss.y - 30, '#c9a84c', 40, 6);
+                spawnParticles(boss.x, boss.y - 30, '#ff4444', 20, 5);
+            }
+        }
+    }
+
+    // Player contact damage
+    const pdx = player.x - boss.x;
+    const pdy = (player.y + player.h / 2) - (boss.y - 25);
+    if (Math.sqrt(pdx * pdx + pdy * pdy) < 40) {
+        damagePlayer(1);
+    }
+
+    // Boss projectile update
+    bossProjectiles.forEach(p => {
+        p.vy += getGravity() * 0.5;
+        p.x += p.vx;
+        p.y += p.vy;
+
+        const dx = p.x - player.x;
+        const dy = p.y - (player.y + player.h / 2);
+        if (Math.sqrt(dx * dx + dy * dy) < 20) {
+            damagePlayer(p.damage);
+            p.hit = true;
+            spawnParticles(p.x, p.y, p.type === 'boulder' ? '#888' : '#d4a853', 6, 2);
+        }
+
+        const gy = getGroundY(p.x);
+        if ((gy !== null && p.y > gy) || p.y > canvas.height + 20) {
+            p.hit = true;
+            if (p.type === 'boulder') {
+                spawnParticles(p.x, p.y, '#888', 10, 4);
+            }
+        }
+    });
+    bossProjectiles = bossProjectiles.filter(p => !p.hit);
+
+    // Shockwave update
+    if (bossShockwave) {
+        bossShockwave.leftX -= bossShockwave.speed;
+        bossShockwave.rightX += bossShockwave.speed;
+        bossShockwave.timer--;
+        if (!bossShockwave.hitPlayer && player.onGround) {
+            if (player.x >= bossShockwave.leftX && player.x <= bossShockwave.rightX) {
+                damagePlayer(2);
+                bossShockwave.hitPlayer = true;
+            }
+        }
+        if (bossShockwave.timer <= 0) bossShockwave = null;
+    }
 }
 
 function getGroundY(x) {
@@ -699,6 +918,45 @@ function initHole() {
     player.invincible = 0;
     initEnemies();
     initWind();
+
+    // Init asteroids
+    const asteroidDefs = levels[currentHole].asteroids || [];
+    activeAsteroids = asteroidDefs.map(a => ({
+        baseX: a.x,
+        baseY: canvas.height - 80 * S + a.y,
+        x: a.x,
+        y: canvas.height - 80 * S + a.y,
+        driftSpeed: a.driftSpeed,
+        driftRange: a.driftRange,
+        phase: a.phase,
+        radius: a.radius
+    }));
+
+    // Init boss
+    bossProjectiles = [];
+    bossShockwave = null;
+    if (level.boss) {
+        const bx = level.boss.x;
+        const by = getGroundY(bx) || (canvas.height - 80 * S);
+        boss = {
+            x: bx,
+            y: by,
+            hp: level.boss.hp,
+            maxHp: level.boss.hp,
+            attackCycle: level.boss.attackCycle,
+            attackIndex: 0,
+            attackTimer: 180,
+            attackPhase: 'idle',
+            windupTimer: 0,
+            dead: false,
+            deathTimer: 0,
+            slamY: by,
+            slamActive: false
+        };
+    } else {
+        boss = null;
+    }
+
     updateHeartsDisplay();
     document.getElementById('coinDisplay').textContent = coins + ' coins';
 
@@ -1164,13 +1422,44 @@ function update() {
         updateEnemies();
         updateSandProjectiles();
 
+        // --- Asteroids ---
+        activeAsteroids.forEach(a => {
+            a.phase += a.driftSpeed * 0.02;
+            a.x = a.baseX + Math.sin(a.phase) * a.driftRange * 0.3;
+            a.y = a.baseY + Math.sin(a.phase * 0.7) * a.driftRange * 0.5;
+
+            // Ball-asteroid collision
+            if (ball.active && !ball.sunk) {
+                const dx = ball.x - a.x;
+                const dy = ball.y - a.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < a.radius + ball.r) {
+                    // Reflect ball off asteroid
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    const dot = ball.vx * nx + ball.vy * ny;
+                    ball.vx = (ball.vx - 2 * dot * nx) * 0.8;
+                    ball.vy = (ball.vy - 2 * dot * ny) * 0.8;
+                    // Push ball outside asteroid
+                    ball.x = a.x + nx * (a.radius + ball.r + 1);
+                    ball.y = a.y + ny * (a.radius + ball.r + 1);
+                    // Spawn gray particles
+                    spawnParticles(ball.x, ball.y, '#888', 8, 3);
+                }
+            }
+        });
+
+        // --- Boss ---
+        if (boss) updateBoss();
+
         // Check hole
         const hDx = ball.x - hole.x;
         const hDy = (ball.y + ball.r) - hole.y;
         const hDist = Math.sqrt(hDx * hDx + hDy * hDy);
         const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        const bossAlive = boss && !boss.dead;
 
-        if (hDist < hole.r && speed < 7) {
+        if (hDist < hole.r && speed < 7 && !bossAlive) {
             ball.sunk = true;
             ball.x = hole.x;
             ball.y = hole.y - ball.r;
@@ -1180,7 +1469,7 @@ function update() {
         }
 
         // Gravity pull near hole
-        if (hDist < hole.r + 15 && speed < 4 && ball.onGround) {
+        if (hDist < hole.r + 15 && speed < 4 && ball.onGround && !bossAlive) {
             ball.vx += (hole.x - ball.x) * 0.008;
         }
     }
@@ -1814,8 +2103,14 @@ function draw() {
         ctx.stroke();
     });
 
+    // --- Asteroids ---
+    drawAsteroids();
+
     // --- Enemies ---
     drawEnemies();
+
+    // --- Boss ---
+    drawBoss();
 
     // --- Hole/flag ---
     // Green patch around hole (so it blends into terrain)
@@ -2193,6 +2488,227 @@ function drawEnemies() {
         ctx.beginPath();
         ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
         ctx.fill();
+    });
+}
+
+function drawAsteroids() {
+    const baseY = canvas.height - 80 * S;
+    activeAsteroids.forEach(a => {
+        // Shadow on ground
+        const groundY = getGroundY(a.x) || baseY;
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(a.x, groundY, a.radius * 0.7, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Irregular rock body (8-point polygon)
+        const grad = ctx.createRadialGradient(a.x - a.radius * 0.3, a.y - a.radius * 0.3, 2, a.x, a.y, a.radius);
+        grad.addColorStop(0, '#c0c0c0');
+        grad.addColorStop(1, '#606060');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const variation = 0.75 + 0.25 * Math.sin(a.phase * 2 + i * 1.7);
+            const r = a.radius * variation;
+            const px = a.x + Math.cos(angle) * r;
+            const py = a.y + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Crater marks
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.beginPath();
+        ctx.arc(a.x - a.radius * 0.3, a.y - a.radius * 0.1, a.radius * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(a.x + a.radius * 0.2, a.y + a.radius * 0.25, a.radius * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function drawBoss() {
+    if (!boss) return;
+
+    // Death animation
+    if (boss.dead) {
+        const alpha = boss.deathTimer / 90;
+        ctx.globalAlpha = alpha;
+        for (let i = 0; i < 10; i++) {
+            const color = i % 2 === 0 ? '#c9a84c' : '#ff4444';
+            const expand = (90 - boss.deathTimer) * 1.5;
+            const ox = Math.sin(i * 1.3 + boss.deathTimer * 0.1) * expand;
+            const oy = -Math.abs(Math.cos(i * 0.9 + boss.deathTimer * 0.15)) * expand;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(boss.x + ox, boss.y - 25 + oy, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        return;
+    }
+
+    // Red aura glow (pulsing)
+    const auraPulse = 0.3 + 0.15 * Math.sin(gameTime * 0.05);
+    const auraGrad = ctx.createRadialGradient(boss.x, boss.y - 25, 10, boss.x, boss.y - 25, 60);
+    auraGrad.addColorStop(0, `rgba(255, 0, 0, ${auraPulse})`);
+    auraGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+    ctx.fillStyle = auraGrad;
+    ctx.beginPath();
+    ctx.arc(boss.x, boss.y - 25, 60, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body: 2x size sandbag shape
+    ctx.fillStyle = '#b08040';
+    ctx.beginPath();
+    ctx.moveTo(boss.x - 24, boss.y);
+    ctx.lineTo(boss.x - 28, boss.y - 44);
+    ctx.quadraticCurveTo(boss.x, boss.y - 64, boss.x + 28, boss.y - 44);
+    ctx.lineTo(boss.x + 24, boss.y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Red tint overlay
+    ctx.fillStyle = 'rgba(180, 30, 30, 0.2)';
+    ctx.beginPath();
+    ctx.moveTo(boss.x - 24, boss.y);
+    ctx.lineTo(boss.x - 28, boss.y - 44);
+    ctx.quadraticCurveTo(boss.x, boss.y - 64, boss.x + 28, boss.y - 44);
+    ctx.lineTo(boss.x + 24, boss.y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Crown-like tied top (zigzag)
+    ctx.strokeStyle = '#8a4a20';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(boss.x - 12, boss.y - 56);
+    ctx.lineTo(boss.x - 6, boss.y - 64);
+    ctx.lineTo(boss.x, boss.y - 56);
+    ctx.lineTo(boss.x + 6, boss.y - 64);
+    ctx.lineTo(boss.x + 12, boss.y - 56);
+    ctx.stroke();
+
+    // Texture lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(boss.x - 16, boss.y - 16);
+    ctx.lineTo(boss.x + 16, boss.y - 16);
+    ctx.moveTo(boss.x - 20, boss.y - 32);
+    ctx.lineTo(boss.x + 20, boss.y - 32);
+    ctx.stroke();
+
+    // Legs (thick sticks, no walking)
+    ctx.strokeStyle = '#8a4a20';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(boss.x - 10, boss.y);
+    ctx.lineTo(boss.x - 10, boss.y + 12);
+    ctx.moveTo(boss.x + 10, boss.y);
+    ctx.lineTo(boss.x + 10, boss.y + 12);
+    ctx.stroke();
+
+    // Glowing red eyes
+    const eyePulse = 0.6 + 0.4 * Math.sin(gameTime * 0.08);
+    // Left eye glow
+    const eyeGlow1 = ctx.createRadialGradient(boss.x - 8, boss.y - 36, 1, boss.x - 8, boss.y - 36, 8);
+    eyeGlow1.addColorStop(0, `rgba(255, 0, 0, ${eyePulse})`);
+    eyeGlow1.addColorStop(1, 'rgba(255, 0, 0, 0)');
+    ctx.fillStyle = eyeGlow1;
+    ctx.beginPath();
+    ctx.arc(boss.x - 8, boss.y - 36, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // Right eye glow
+    const eyeGlow2 = ctx.createRadialGradient(boss.x + 8, boss.y - 36, 1, boss.x + 8, boss.y - 36, 8);
+    eyeGlow2.addColorStop(0, `rgba(255, 0, 0, ${eyePulse})`);
+    eyeGlow2.addColorStop(1, 'rgba(255, 0, 0, 0)');
+    ctx.fillStyle = eyeGlow2;
+    ctx.beginPath();
+    ctx.arc(boss.x + 8, boss.y - 36, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // Solid red eye dots
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.arc(boss.x - 8, boss.y - 36, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(boss.x + 8, boss.y - 36, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Windup telegraph for boulder
+    if (boss.attackPhase === 'boulder' && boss.windupTimer > 0) {
+        const flash = Math.sin(gameTime * 0.3) > 0 ? 1 : 0.3;
+        ctx.globalAlpha = flash;
+        ctx.fillStyle = '#ff0000';
+        ctx.font = 'bold 20px Georgia';
+        ctx.textAlign = 'center';
+        ctx.fillText('!', boss.x, boss.y - 72);
+        ctx.textAlign = 'left';
+        ctx.globalAlpha = 1;
+    }
+
+    // HP bar
+    const barW = 50, barH = 5;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(boss.x - barW / 2, boss.y - 74, barW, barH);
+    const hpRatio = boss.hp / boss.maxHp;
+    const hpColor = hpRatio > 0.5 ? '#4ade80' : hpRatio > 0.25 ? '#fbbf24' : '#ef4444';
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(boss.x - barW / 2, boss.y - 74, barW * hpRatio, barH);
+
+    // Shockwave visualization
+    if (bossShockwave) {
+        const alpha = bossShockwave.timer / 60;
+        ctx.strokeStyle = `rgba(210, 170, 80, ${alpha * 0.6})`;
+        ctx.lineWidth = 2;
+        // Left wave edge lines
+        for (let i = 0; i < 3; i++) {
+            const lx = bossShockwave.leftX + i * 8;
+            const gy = getGroundY(lx) || (canvas.height - 80 * S);
+            ctx.beginPath();
+            ctx.moveTo(lx, gy);
+            ctx.lineTo(lx + 4, gy - 12 - i * 3);
+            ctx.stroke();
+        }
+        // Right wave edge lines
+        for (let i = 0; i < 3; i++) {
+            const rx = bossShockwave.rightX - i * 8;
+            const gy = getGroundY(rx) || (canvas.height - 80 * S);
+            ctx.beginPath();
+            ctx.moveTo(rx, gy);
+            ctx.lineTo(rx - 4, gy - 12 - i * 3);
+            ctx.stroke();
+        }
+    }
+
+    // Boss projectiles
+    bossProjectiles.forEach(p => {
+        if (p.type === 'boulder') {
+            // Large gray circle with crater
+            const r = p.radius || 12;
+            ctx.fillStyle = '#888';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.arc(p.x - r * 0.2, p.y - r * 0.1, r * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Sand projectile with outer glow
+            ctx.fillStyle = '#c9a84c';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(200, 160, 60, 0.4)';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+            ctx.fill();
+        }
     });
 }
 
