@@ -1077,8 +1077,12 @@
                     const ny = bdy / (bdist || 1);
                     const dot = ball.vx * nx + ball.vy * ny;
                     const spd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                    ball.vx = (ball.vx - 2 * dot * nx) * 0.7;
-                    ball.vy = (ball.vy - 2 * dot * ny) * 0.7;
+                    ball.vx = (ball.vx - 2 * dot * nx) * 1.5;
+                    ball.vy = (ball.vy - 2 * dot * ny) * 1.5;
+                    // Ensure minimum bounce-back distance from boss
+                    const bounceAwayX = ball.x - boss.x;
+                    if (Math.abs(ball.vx) < 5) ball.vx = (bounceAwayX >= 0 ? 1 : -1) * 8;
+                    if (ball.vy > -3) ball.vy = -5;
                     spawnParticles(boss.x, boss.y - 25, '#d4a853', 10, 3);
 
                     if (boss.hp <= 0) {
@@ -1168,7 +1172,7 @@
             x: 0, y: 0, vx: 0, vy: 0,
             w: 20, h: 50,
             onGround: false, facing: 1,
-            walking: false, walkFrame: 0,
+            walking: false, walkFrame: 0, swingFrame: 0,
             hp: 2, maxHp: 2,
             jumpsLeft: 1,
             jumpHeld: false,
@@ -1505,6 +1509,7 @@
                 document.getElementById('strokeNum').textContent = strokes;
                 spawnParticles(ball.x, ball.y, '#fff', 8, 3);
                 playSound('swing', 0.6);
+                player.swingFrame = 20;
                 mobileHitMode = false;
                 if (gbB) gbB.textContent = 'B';
                 document.getElementById('statusText').textContent = '';
@@ -1594,6 +1599,7 @@
             document.getElementById('strokeNum').textContent = strokes;
             spawnParticles(ball.x, ball.y, '#fff', 8, 3);
             playSound('swing', 0.6);
+            player.swingFrame = 20;
         }
 
         // ==================== UPDATE ====================
@@ -1668,6 +1674,7 @@
 
             if (player.walking) player.walkFrame += 0.15;
             else player.walkFrame = 0;
+            if (player.swingFrame > 0) player.swingFrame--;
 
             // Player ground collision
             const pGroundY = getGroundY(player.x);
@@ -3405,7 +3412,33 @@
 
                     ctx.strokeStyle = '#c4956a';
                     ctx.lineWidth = 3.5 * u;
-                    if (player.rangeFinder) {
+                    if (player.swingFrame > 0) {
+                        // Golf swing animation
+                        const t = player.swingFrame / 20; // 1.0 → 0.0
+                        const swingAngle = (1 - t) * Math.PI * 0.8 - Math.PI * 0.2; // backswing to follow-through
+                        const armLen = 14 * u;
+                        const handX = 9 * u + Math.cos(swingAngle) * armLen;
+                        const handY = torsoTop + 6 * u + Math.sin(swingAngle) * armLen;
+                        ctx.beginPath();
+                        ctx.moveTo(12 * u, torsoTop + 8 * u);
+                        ctx.lineTo(handX, handY);
+                        ctx.stroke();
+                        // Club shaft follows arm
+                        const clubLen = 18 * u;
+                        const clubX = handX + Math.cos(swingAngle) * clubLen;
+                        const clubY = handY + Math.sin(swingAngle) * clubLen;
+                        ctx.strokeStyle = SHAFT_TIERS[equipment.shaft].color;
+                        ctx.lineWidth = 2 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(handX, handY);
+                        ctx.lineTo(clubX, clubY);
+                        ctx.stroke();
+                        // Club head
+                        ctx.fillStyle = CLUB_TIERS[equipment.club].color;
+                        ctx.beginPath();
+                        ctx.arc(clubX, clubY, 4 * u, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (player.rangeFinder) {
                         // Right arm raised, holding range finder to eye
                         ctx.beginPath();
                         ctx.moveTo(12 * u, torsoTop + 8 * u);
