@@ -380,17 +380,24 @@
     </div>
 
     <div class="overlay hidden" id="endOverlay">
-        <h2>Round Complete!</h2>
-        <p id="endSummary"></p>
-        <button id="shareBtn">Share Score</button>
-        <div id="leaderboardSection" style="margin-top:18px;width:min(400px,85vw);text-align:center;">
-            <div id="leaderboardForm">
+        <!-- Step 1: Score summary + name entry -->
+        <div id="endStep1">
+            <h2>Round Complete!</h2>
+            <p id="endSummary"></p>
+            <div id="leaderboardForm" style="width:min(400px,85vw);text-align:center;">
+                <p style="color:#c9a84c;font-size:0.95rem;margin-bottom:10px;">Enter your name for the leaderboard</p>
                 <input type="text" id="playerName" placeholder="Enter your name" maxlength="24"
                     style="padding:10px 16px;font-size:1rem;border:2px solid #c9a84c;border-radius:6px;background:rgba(0,0,0,0.5);color:#fff;font-family:Georgia,serif;width:70%;outline:none;">
                 <button id="submitScoreBtn" style="margin-left:6px;">Submit</button>
+                <p id="leaderboardStatus" style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin:6px 0 0;"></p>
             </div>
-            <p id="leaderboardStatus" style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin:6px 0 0;"></p>
-            <div id="leaderboardTable" style="display:none;margin-top:12px;max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#c9a84c transparent;">
+            <button id="skipLeaderboardBtn" style="margin-top:14px;background:transparent;color:rgba(255,255,255,0.5);font-size:0.85rem;padding:8px 20px;border:1px solid rgba(255,255,255,0.2);text-transform:none;letter-spacing:0;">Skip</button>
+        </div>
+        <!-- Step 2: Leaderboard -->
+        <div id="endStep2" style="display:none;text-align:center;">
+            <h2 style="color:#c9a84c;font-size:1.8rem;margin-bottom:4px;">Leaderboard</h2>
+            <p id="leaderboardNote" style="font-size:0.85rem;color:#c9a84c;margin:0 0 8px;display:none;"></p>
+            <div id="leaderboardTable" style="margin-top:12px;max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#c9a84c transparent;width:min(400px,85vw);">
                 <table style="width:100%;border-collapse:collapse;font-family:Georgia,serif;">
                     <thead>
                         <tr style="color:#c9a84c;font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;">
@@ -403,8 +410,16 @@
                     <tbody id="leaderboardBody"></tbody>
                 </table>
             </div>
+            <button id="leaderboardNextBtn" style="margin-top:18px;">Continue</button>
         </div>
-        <button id="replayBtn" style="margin-top:14px;">Play Again</button>
+        <!-- Step 3: Share & Play Again -->
+        <div id="endStep3" style="display:none;">
+            <h2 style="color:#c9a84c;font-size:1.8rem;margin-bottom:12px;">Thanks for playing!</h2>
+            <p id="endSummary2" style="color:rgba(255,255,255,0.7);margin-bottom:20px;font-size:1.1rem;"></p>
+            <button id="shareBtn" style="margin-bottom:28px;">Share Score</button>
+            <br>
+            <button id="replayBtn">Play Again</button>
+        </div>
     </div>
 
     <script>
@@ -5256,21 +5271,39 @@
             const totalPar = levels.reduce((a, l) => a + l.par, 0);
             const diff = total - totalPar;
             const diffStr = diff === 0 ? 'Even' : diff > 0 ? '+' + diff : '' + diff;
-            document.getElementById('endSummary').textContent =
-                `Total: ${total} strokes (${diffStr} | Par ${totalPar})`;
+            const summaryText = `Total: ${total} strokes (${diffStr} | Par ${totalPar})`;
+            document.getElementById('endSummary').textContent = summaryText;
+            document.getElementById('endSummary2').textContent = summaryText;
+
+            // Show step 1, hide others
+            document.getElementById('endStep1').style.display = '';
+            document.getElementById('endStep2').style.display = 'none';
+            document.getElementById('endStep3').style.display = 'none';
 
             // Hide leaderboard form if Patrick Wong was used at any point
             if (usedPatrick) {
                 document.getElementById('leaderboardForm').style.display = 'none';
-                document.getElementById('leaderboardStatus').textContent = 'Patrick Wong players are ineligible for the leaderboard.';
-                document.getElementById('leaderboardStatus').style.color = '#c9a84c';
-                fetchLeaderboard();
+                document.getElementById('leaderboardNote').textContent = 'Patrick Wong players are ineligible for the leaderboard.';
+                document.getElementById('leaderboardNote').style.display = '';
+                goToLeaderboardStep();
             } else {
                 document.getElementById('leaderboardForm').style.display = '';
                 document.getElementById('leaderboardStatus').textContent = '';
             }
-            document.getElementById('leaderboardTable').style.display = 'none';
             document.getElementById('endOverlay').classList.remove('hidden');
+        }
+
+        function goToLeaderboardStep() {
+            document.getElementById('endStep1').style.display = 'none';
+            document.getElementById('endStep2').style.display = '';
+            document.getElementById('endStep3').style.display = 'none';
+            fetchLeaderboard();
+        }
+
+        function goToShareStep() {
+            document.getElementById('endStep1').style.display = 'none';
+            document.getElementById('endStep2').style.display = 'none';
+            document.getElementById('endStep3').style.display = '';
         }
 
         async function submitScore() {
@@ -5291,10 +5324,9 @@
 
             try {
                 await fetch(FORM_URL, { method: 'POST', mode: 'no-cors', body: formData });
-                document.getElementById('leaderboardForm').style.display = 'none';
                 document.getElementById('leaderboardStatus').textContent = 'Score submitted!';
-                // Brief delay for the sheet to update
-                setTimeout(() => fetchLeaderboard(), 1500);
+                // Brief delay for the sheet to update, then show leaderboard
+                setTimeout(() => goToLeaderboardStep(), 1500);
             } catch (e) {
                 document.getElementById('leaderboardStatus').textContent = 'Submit failed. Try again.';
                 document.getElementById('submitScoreBtn').disabled = false;
@@ -5328,22 +5360,25 @@
                     });
                 }
                 document.getElementById('leaderboardTable').style.display = '';
-                document.getElementById('leaderboardStatus').textContent = '';
             } catch (e) {
-                document.getElementById('leaderboardStatus').textContent = 'Could not load leaderboard.';
+                const tbody = document.getElementById('leaderboardBody');
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,0.4);padding:12px;">Could not load leaderboard.</td></tr>';
+                document.getElementById('leaderboardTable').style.display = '';
             }
         }
 
         document.getElementById('submitScoreBtn').addEventListener('click', submitScore);
         document.getElementById('playerName').addEventListener('keydown', e => { if (e.key === 'Enter') submitScore(); });
+        document.getElementById('skipLeaderboardBtn').addEventListener('click', goToShareStep);
+        document.getElementById('leaderboardNextBtn').addEventListener('click', goToShareStep);
 
         document.getElementById('replayBtn').addEventListener('click', () => {
             document.getElementById('endOverlay').classList.add('hidden');
             document.getElementById('leaderboardForm').style.display = '';
-            document.getElementById('leaderboardTable').style.display = 'none';
             document.getElementById('leaderboardBody').innerHTML = '';
             document.getElementById('submitScoreBtn').disabled = false;
             document.getElementById('leaderboardStatus').textContent = '';
+            document.getElementById('leaderboardNote').style.display = 'none';
             currentHole = 0;
             scores = [];
             coins = 0;
