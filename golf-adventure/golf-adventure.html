@@ -147,9 +147,7 @@
         }
 
         .dpad-down::after {
-            border-top-color: #c9a84c;
-            border-bottom: 0;
-            margin-bottom: -4px;
+            content: none;
         }
 
         .dpad-left::after {
@@ -173,7 +171,12 @@
         }
 
         .dpad-down:active::after {
-            border-top-color: #0d2818;
+            content: none;
+        }
+
+        .dpad-down:active svg circle,
+        .dpad-down:active svg line {
+            stroke: #0d2818;
         }
 
         .dpad-left:active::after {
@@ -361,7 +364,7 @@
             <div class="dpad-btn dpad-left" id="gbLeft">&#9664;</div>
             <div class="dpad-center"></div>
             <div class="dpad-btn dpad-right" id="gbRight">&#9654;</div>
-            <div class="dpad-btn dpad-down" id="gbDown">&#9660;</div>
+            <div class="dpad-btn dpad-down" id="gbDown" style="display: flex; align-items: center; justify-content: center; gap: 2px;"><svg width="20" height="16" viewBox="0 0 20 16"><circle cx="6" cy="9" r="5" fill="none" stroke="#c9a84c" stroke-width="1.5"/><circle cx="14" cy="9" r="5" fill="none" stroke="#c9a84c" stroke-width="1.5"/><line x1="6" y1="4" x2="14" y2="4" stroke="#c9a84c" stroke-width="1.5"/></svg></div>
         </div>
         <!-- A/B buttons on right -->
         <div class="ab-buttons">
@@ -459,6 +462,23 @@
             S = canvas.width / 800;
         }
         let S = 1;
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+        // ==================== PERFORMANCE: GRADIENT CACHE ====================
+        let cachedVignette = null;
+        let cachedVignetteKey = '';
+        function getCachedVignette(W, H, tod) {
+            const key = W + ',' + H + ',' + tod;
+            if (cachedVignetteKey !== key) {
+                cachedVignetteKey = key;
+                const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.75);
+                vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+                vigGrad.addColorStop(1, (tod === 'night' || tod === 'storm') ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.1)');
+                cachedVignette = vigGrad;
+            }
+            return cachedVignette;
+        }
+
         resize();
         window.addEventListener('resize', resize);
 
@@ -1903,7 +1923,9 @@
                 cameraX += (idealCam - cameraX) * 0.05;
             } else {
                 cameraZoom += (1 - cameraZoom) * 0.08;
-                const target = (Math.abs(ball.vx) > 2 || Math.abs(ball.vy) > 2) ? ball.x : player.x;
+                const ballMoving = Math.abs(ball.vx) > 2 || Math.abs(ball.vy) > 2;
+                const psychicActive = activeCharacter === 'patrick' && psychicMode;
+                const target = (ballMoving || psychicActive) ? ball.x : player.x;
                 const idealCam = target - canvas.width * 0.35;
                 cameraX += (idealCam - cameraX) * 0.08;
             }
@@ -2231,7 +2253,8 @@
                 ctx.fillStyle = theme.hillFar;
                 ctx.beginPath();
                 ctx.moveTo(0, baseY);
-                for (let x = 0; x <= W; x += 2) {
+                const hillStep = isMobile ? 6 : 2;
+                for (let x = 0; x <= W; x += hillStep) {
                     const hx = x + hillOffset;
                     const hy = baseY - 40 - Math.sin(hx * 0.008) * 25 - Math.sin(hx * 0.003) * 40;
                     ctx.lineTo(x, hy);
@@ -2261,7 +2284,7 @@
                 ctx.fillStyle = theme.hillNear;
                 ctx.beginPath();
                 ctx.moveTo(0, baseY);
-                for (let x = 0; x <= W; x += 2) {
+                for (let x = 0; x <= W; x += hillStep) {
                     const hx = x + cameraX * 0.3;
                     const hy = baseY - 20 - Math.sin(hx * 0.012 + 1) * 18 - Math.sin(hx * 0.005) * 25;
                     ctx.lineTo(x, hy);
@@ -2334,24 +2357,30 @@
                 ctx.closePath();
                 ctx.fill();
 
-                // Dirt texture (rocks/pebbles)
-                ctx.fillStyle = 'rgba(0,0,0,0.08)';
-                for (let rx = t.x + 8; rx < t.x + t.w - 8; rx += 15 + (rx * 13 % 12)) {
-                    const progress = (rx - t.x) / t.w;
-                    const ry = startY + t.h * progress + 14 + (rx * 7 % 20);
-                    if (ry < H) {
-                        ctx.beginPath();
-                        ctx.ellipse(rx, ry, 2 + (rx % 3), 1.5, (rx % 4) * 0.5, 0, Math.PI * 2);
-                        ctx.fill();
+                // Dirt texture (rocks/pebbles) - skip on mobile for performance
+                if (!isMobile) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+                    for (let rx = t.x + 8; rx < t.x + t.w - 8; rx += 15 + (rx * 13 % 12)) {
+                        const progress = (rx - t.x) / t.w;
+                        const ry = startY + t.h * progress + 14 + (rx * 7 % 20);
+                        if (ry < H) {
+                            ctx.beginPath();
+                            ctx.ellipse(rx, ry, 2 + (rx % 3), 1.5, (rx % 4) * 0.5, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
                     }
                 }
 
                 // Main grass
-                const grassGrad = ctx.createLinearGradient(0, startY - 5, 0, startY + 15);
-                grassGrad.addColorStop(0, theme.grassTop);
-                grassGrad.addColorStop(0.3, theme.grassMid);
-                grassGrad.addColorStop(1, theme.grassBot);
-                ctx.fillStyle = grassGrad;
+                if (isMobile) {
+                    ctx.fillStyle = theme.grassMid;
+                } else {
+                    const grassGrad = ctx.createLinearGradient(0, startY - 5, 0, startY + 15);
+                    grassGrad.addColorStop(0, theme.grassTop);
+                    grassGrad.addColorStop(0.3, theme.grassMid);
+                    grassGrad.addColorStop(1, theme.grassBot);
+                    ctx.fillStyle = grassGrad;
+                }
                 ctx.beginPath();
                 ctx.moveTo(t.x, startY);
                 ctx.lineTo(t.x + t.w, endY);
@@ -2384,7 +2413,8 @@
                     ctx.strokeStyle = theme.grassBlade;
                     ctx.lineWidth = 1.5;
                     const windPhase = gameTime * 0.015;
-                    for (let gx = t.x; gx < t.x + t.w; gx += 6 + Math.random() * 4) {
+                    const grassStep = isMobile ? 12 : 6;
+                    for (let gx = t.x; gx < t.x + t.w; gx += grassStep + Math.random() * 4) {
                         const progress = (gx - t.x) / t.w;
                         const gy = startY + t.h * progress;
                         const bladeH = 4 + Math.random() * 5;
@@ -2771,10 +2801,7 @@
             }
 
             // Vignette effect
-            const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.75);
-            vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
-            vigGrad.addColorStop(1, (tod === 'night' || tod === 'storm') ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.1)');
-            ctx.fillStyle = vigGrad;
+            ctx.fillStyle = getCachedVignette(W, H, tod);
             ctx.fillRect(0, 0, W, H);
 
             // Storm effects (rain, lightning, wind indicator)
@@ -3145,7 +3172,8 @@
             ctx.strokeStyle = 'rgba(180, 200, 255, 0.3)';
             ctx.lineWidth = 1;
             const rainAngle = wind.direction * 3;
-            for (let i = 0; i < 80; i++) {
+            const rainCount = isMobile ? 35 : 80;
+            for (let i = 0; i < rainCount; i++) {
                 const rx = (i * 17 + gameTime * 3 * (1 + (i % 3) * 0.3)) % (W + 100) - 50;
                 const ry = (i * 31 + gameTime * 8 * (1 + (i % 2) * 0.5)) % (H + 50) - 25;
                 ctx.beginPath();
@@ -4479,136 +4507,7 @@
                 ctx.textAlign = 'left';
             }
 
-            // Cheat code input overlay
-            if (cheatCodeMode) {
-                // Darken background
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(0, 0, W, H);
-                // Input box
-                const bx = W / 2, by = H / 2;
-                ctx.fillStyle = 'rgba(42,26,10,0.95)';
-                ctx.beginPath();
-                ctx.roundRect(bx - 130, by - 50, 260, 100, 12);
-                ctx.fill();
-                ctx.strokeStyle = '#c8a86e';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                // Title
-                ctx.fillStyle = '#c8a86e';
-                ctx.font = 'bold 14px Georgia';
-                ctx.textAlign = 'center';
-                ctx.fillText('Enter Secret Code', bx, by - 22);
-                // Input field
-                ctx.fillStyle = '#1a0f05';
-                ctx.beginPath();
-                ctx.roundRect(bx - 90, by - 8, 180, 30, 6);
-                ctx.fill();
-                ctx.strokeStyle = '#8a6a3e';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-                // Input text (masked)
-                ctx.fillStyle = '#e8d8b8';
-                ctx.font = '16px monospace';
-                const masked = '*'.repeat(cheatCodeInput.length);
-                const cursor = Math.floor(gameTime / 30) % 2 === 0 ? '|' : '';
-                ctx.fillText(masked + cursor, bx, by + 13);
-                // Hint
-                ctx.fillStyle = '#8a7a5a';
-                ctx.font = '10px Georgia';
-                ctx.fillText('Press Enter to submit, Esc to cancel', bx, by + 40);
-                ctx.textAlign = 'left';
-            }
-
-            // Shopkeeper dialogue menu
-            if (shopDialogueMode) {
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(0, 0, W, H);
-                // Center menu on player's screen X position, clamped to canvas bounds
-                const playerScreenX = player.x - cameraX;
-                const bx = Math.max(170, Math.min(W - 170, playerScreenX));
-                const by = Math.min(H - 80, H / 2);
-                ctx.fillStyle = 'rgba(42,26,10,0.95)';
-                ctx.beginPath();
-                ctx.roundRect(bx - 160, by - 65, 320, 130, 12);
-                ctx.fill();
-                ctx.strokeStyle = '#c8a86e';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.fillStyle = '#c8a86e';
-                ctx.font = 'bold 14px Georgia';
-                ctx.textAlign = 'center';
-                ctx.fillText('Shopkeeper', bx, by - 40);
-                const options = [
-                    "What's new in this town?",
-                    "I heard there's a tough guy around here..."
-                ];
-                options.forEach((opt, i) => {
-                    const oy = by - 8 + i * 30;
-                    if (i === shopDialogueSelection) {
-                        ctx.fillStyle = 'rgba(200,168,110,0.2)';
-                        ctx.beginPath();
-                        ctx.roundRect(bx - 140, oy - 14, 280, 26, 4);
-                        ctx.fill();
-                        ctx.fillStyle = '#c8a86e';
-                        ctx.font = 'bold 13px Georgia';
-                    } else {
-                        ctx.fillStyle = '#a89070';
-                        ctx.font = '13px Georgia';
-                    }
-                    const arrow = i === shopDialogueSelection ? '\u25b6 ' : '  ';
-                    ctx.fillText(arrow + opt, bx, oy + 2);
-                });
-                ctx.fillStyle = '#8a7a5a';
-                ctx.font = '10px Georgia';
-                const isMob = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-                ctx.fillText(isMob ? 'B to switch, A to confirm' : 'Up/Down to select, Enter to confirm, Esc to close', bx, by + 52);
-                ctx.textAlign = 'left';
-            }
-
-            // Changelog overlay
-            if (changelogMode) {
-                ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                ctx.fillRect(0, 0, W, H);
-                const bx = W / 2, by = H / 2;
-                const boxW = 340, boxH = Math.min(H - 40, 300);
-                ctx.fillStyle = 'rgba(42,26,10,0.95)';
-                ctx.beginPath();
-                ctx.roundRect(bx - boxW / 2, by - boxH / 2, boxW, boxH, 12);
-                ctx.fill();
-                ctx.strokeStyle = '#c8a86e';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.fillStyle = '#c8a86e';
-                ctx.font = 'bold 15px Georgia';
-                ctx.textAlign = 'center';
-                ctx.fillText("What's New — " + GAME_VERSION, bx, by - boxH / 2 + 24);
-                // Draw changelog entries
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(bx - boxW / 2 + 10, by - boxH / 2 + 36, boxW - 20, boxH - 60);
-                ctx.clip();
-                let ly = by - boxH / 2 + 52 - changelogScroll;
-                ctx.textAlign = 'left';
-                for (const entry of CHANGELOG) {
-                    ctx.fillStyle = '#c8a86e';
-                    ctx.font = 'bold 12px Georgia';
-                    ctx.fillText(entry.version, bx - boxW / 2 + 20, ly);
-                    ly += 18;
-                    ctx.fillStyle = '#d8c8a8';
-                    ctx.font = '11px Georgia';
-                    for (const line of entry.changes) {
-                        ctx.fillText('• ' + line, bx - boxW / 2 + 30, ly);
-                        ly += 16;
-                    }
-                    ly += 10;
-                }
-                ctx.restore();
-                ctx.fillStyle = '#8a7a5a';
-                ctx.font = '10px Georgia';
-                ctx.textAlign = 'center';
-                ctx.fillText('Press Esc or Enter to close', bx, by + boxH / 2 - 10);
-                ctx.textAlign = 'left';
-            }
+            // (Overlays moved after ctx.restore to render in screen coordinates)
 
             // Teleport animation
             if (teleportAnim) {
@@ -4951,6 +4850,129 @@
                 ctx.globalAlpha = Math.min(1, shopMessageTimer / 30);
                 ctx.fillText(shopMessage, W / 2, H / 2 - 60);
                 ctx.globalAlpha = 1;
+                ctx.textAlign = 'left';
+            }
+
+            // ==================== SHOP OVERLAYS (screen coordinates) ====================
+
+            // Cheat code input overlay
+            if (cheatCodeMode) {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(0, 0, W, H);
+                const bx = W / 2, by = H / 2;
+                ctx.fillStyle = 'rgba(42,26,10,0.95)';
+                ctx.beginPath();
+                ctx.roundRect(bx - 130, by - 50, 260, 100, 12);
+                ctx.fill();
+                ctx.strokeStyle = '#c8a86e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = '#c8a86e';
+                ctx.font = 'bold 14px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText('Enter Secret Code', bx, by - 22);
+                ctx.fillStyle = '#1a0f05';
+                ctx.beginPath();
+                ctx.roundRect(bx - 90, by - 8, 180, 30, 6);
+                ctx.fill();
+                ctx.strokeStyle = '#8a6a3e';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.fillStyle = '#e8d8b8';
+                ctx.font = '16px monospace';
+                const masked = '*'.repeat(cheatCodeInput.length);
+                const cursor = Math.floor(gameTime / 30) % 2 === 0 ? '|' : '';
+                ctx.fillText(masked + cursor, bx, by + 13);
+                ctx.fillStyle = '#8a7a5a';
+                ctx.font = '10px Georgia';
+                ctx.fillText('Press Enter to submit, Esc to cancel', bx, by + 40);
+                ctx.textAlign = 'left';
+            }
+
+            // Shopkeeper dialogue menu
+            if (shopDialogueMode) {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(0, 0, W, H);
+                const bx = W / 2, by = H / 2;
+                ctx.fillStyle = 'rgba(42,26,10,0.95)';
+                ctx.beginPath();
+                ctx.roundRect(bx - 160, by - 65, 320, 130, 12);
+                ctx.fill();
+                ctx.strokeStyle = '#c8a86e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = '#c8a86e';
+                ctx.font = 'bold 14px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText('Shopkeeper', bx, by - 40);
+                const options = [
+                    "What's new in this town?",
+                    "I heard there's a tough guy around here..."
+                ];
+                options.forEach((opt, i) => {
+                    const oy = by - 8 + i * 30;
+                    if (i === shopDialogueSelection) {
+                        ctx.fillStyle = 'rgba(200,168,110,0.2)';
+                        ctx.beginPath();
+                        ctx.roundRect(bx - 140, oy - 14, 280, 26, 4);
+                        ctx.fill();
+                        ctx.fillStyle = '#c8a86e';
+                        ctx.font = 'bold 13px Georgia';
+                    } else {
+                        ctx.fillStyle = '#a89070';
+                        ctx.font = '13px Georgia';
+                    }
+                    const arrow = i === shopDialogueSelection ? '\u25b6 ' : '  ';
+                    ctx.fillText(arrow + opt, bx, oy + 2);
+                });
+                ctx.fillStyle = '#8a7a5a';
+                ctx.font = '10px Georgia';
+                const isMob = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                ctx.fillText(isMob ? 'B to switch, A to confirm' : 'Up/Down to select, Enter to confirm, Esc to close', bx, by + 52);
+                ctx.textAlign = 'left';
+            }
+
+            // Changelog overlay
+            if (changelogMode) {
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(0, 0, W, H);
+                const bx = W / 2, by = H / 2;
+                const boxW = 340, boxH = Math.min(H - 40, 300);
+                ctx.fillStyle = 'rgba(42,26,10,0.95)';
+                ctx.beginPath();
+                ctx.roundRect(bx - boxW / 2, by - boxH / 2, boxW, boxH, 12);
+                ctx.fill();
+                ctx.strokeStyle = '#c8a86e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = '#c8a86e';
+                ctx.font = 'bold 15px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText("What's New — " + GAME_VERSION, bx, by - boxH / 2 + 24);
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(bx - boxW / 2 + 10, by - boxH / 2 + 36, boxW - 20, boxH - 60);
+                ctx.clip();
+                let ly = by - boxH / 2 + 52 - changelogScroll;
+                ctx.textAlign = 'left';
+                for (const entry of CHANGELOG) {
+                    ctx.fillStyle = '#c8a86e';
+                    ctx.font = 'bold 12px Georgia';
+                    ctx.fillText(entry.version, bx - boxW / 2 + 20, ly);
+                    ly += 18;
+                    ctx.fillStyle = '#d8c8a8';
+                    ctx.font = '11px Georgia';
+                    for (const line of entry.changes) {
+                        ctx.fillText('• ' + line, bx - boxW / 2 + 30, ly);
+                        ly += 16;
+                    }
+                    ly += 10;
+                }
+                ctx.restore();
+                ctx.fillStyle = '#8a7a5a';
+                ctx.font = '10px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText('Press Esc or Enter to close', bx, by + boxH / 2 - 10);
                 ctx.textAlign = 'left';
             }
         }
