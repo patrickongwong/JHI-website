@@ -408,6 +408,46 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        // ==================== AUDIO SYSTEM ====================
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const sounds = {};
+        const bgMusic = new Audio('sounds/background-music.mp3');
+        bgMusic.loop = true;
+        bgMusic.volume = 0.3;
+        let musicStarted = false;
+
+        function loadSound(name, url) {
+            fetch(url)
+                .then(r => r.arrayBuffer())
+                .then(buf => audioCtx.decodeAudioData(buf))
+                .then(decoded => { sounds[name] = decoded; });
+        }
+        loadSound('swing', 'sounds/swing.wav');
+        loadSound('applause', 'sounds/applause.wav');
+
+        function playSound(name, volume = 1.0) {
+            if (!sounds[name]) return;
+            const source = audioCtx.createBufferSource();
+            source.buffer = sounds[name];
+            const gain = audioCtx.createGain();
+            gain.gain.value = volume;
+            source.connect(gain);
+            gain.connect(audioCtx.destination);
+            source.start(0);
+        }
+
+        function startMusic() {
+            if (musicStarted) return;
+            musicStarted = true;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            bgMusic.play().catch(() => {});
+        }
+
+        // Start music on first user interaction
+        ['click', 'touchstart', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, startMusic, { once: false });
+        });
+
         function resize() {
             const maxW = 1200, maxH = 600;
             const vw = window.innerWidth * 0.96;
@@ -1435,6 +1475,7 @@
                 strokes++;
                 document.getElementById('strokeNum').textContent = strokes;
                 spawnParticles(ball.x, ball.y, '#fff', 8, 3);
+                playSound('swing', 0.6);
                 mobileHitMode = false;
                 if (gbB) gbB.textContent = 'B';
                 document.getElementById('statusText').textContent = '';
@@ -1523,6 +1564,7 @@
             strokes++;
             document.getElementById('strokeNum').textContent = strokes;
             spawnParticles(ball.x, ball.y, '#fff', 8, 3);
+            playSound('swing', 0.6);
         }
 
         // ==================== UPDATE ====================
@@ -4481,7 +4523,10 @@
             if (shopDialogueMode) {
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.fillRect(0, 0, W, H);
-                const bx = W / 2, by = H / 2;
+                // Center menu on player's screen X position, clamped to canvas bounds
+                const playerScreenX = player.x - cameraX;
+                const bx = Math.max(170, Math.min(W - 170, playerScreenX));
+                const by = Math.min(H - 80, H / 2);
                 ctx.fillStyle = 'rgba(42,26,10,0.95)';
                 ctx.beginPath();
                 ctx.roundRect(bx - 160, by - 65, 320, 130, 12);
@@ -4912,6 +4957,7 @@
 
         // ==================== HOLE COMPLETE ====================
         function onHoleSunk() {
+            playSound('applause', 0.4);
             const par = levels[currentHole].par;
             const diff = strokes - par;
             scores.push(strokes);
