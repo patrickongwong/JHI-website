@@ -661,6 +661,26 @@
         // Cheat code system
         let cheatCodeMode = false;
         let cheatCodeInput = '';
+        let shopDialogueMode = false;
+        let shopDialogueSelection = 0; // 0 or 1
+        let changelogMode = false;
+        let changelogScroll = 0;
+
+        const GAME_VERSION = 'v1.00';
+        const CHANGELOG = [
+            { version: 'v1.00', changes: [
+                'Initial release',
+                '9 holes across meadow, desert, tundra, and space',
+                'Equipment shop: clubs, shafts, boots, and shirts',
+                'Secret unlockable character',
+                'Mobile Gameboy-style controls',
+                'Range finder zoom',
+                'Leaderboard with Google Sheets',
+                'Score sharing with image generation',
+                'Space level with reduced gravity and asteroids',
+                'Ending cinematic sequence',
+            ]}
+        ];
         let teleportAnim = null; // { x, y, frame, maxFrames }
 
         function saveCharacterState() {
@@ -1254,6 +1274,33 @@
                 cinematicSkipped = true;
                 return;
             }
+            if (changelogMode) {
+                e.preventDefault();
+                if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+                    changelogMode = false;
+                }
+                return;
+            }
+            if (shopDialogueMode) {
+                e.preventDefault();
+                if (e.key === 'Escape') {
+                    shopDialogueMode = false;
+                } else if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') {
+                    shopDialogueSelection = 0;
+                } else if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') {
+                    shopDialogueSelection = 1;
+                } else if (e.key === 'Enter' || e.key === ' ') {
+                    shopDialogueMode = false;
+                    if (shopDialogueSelection === 0) {
+                        changelogMode = true;
+                        changelogScroll = 0;
+                    } else {
+                        cheatCodeMode = true;
+                        cheatCodeInput = '';
+                    }
+                }
+                return;
+            }
             if (cheatCodeMode) {
                 e.preventDefault();
                 if (e.key === 'Escape') {
@@ -1331,6 +1378,16 @@
         }
 
         function handleMobileHit() {
+            // In dialogue mode, B toggles selection
+            if (shopDialogueMode) {
+                shopDialogueSelection = shopDialogueSelection === 0 ? 1 : 0;
+                return;
+            }
+            // In changelog mode, B closes it
+            if (changelogMode) {
+                changelogMode = false;
+                return;
+            }
             if (activeCharacter === 'patrick') {
                 if (ball.sunk || !ball.onGround || !ballIsSettled()) return;
                 if (!playerNearBall()) return;
@@ -3738,7 +3795,7 @@
         function updateShop() {
             gameTime++;
             player.walking = false;
-            if (!cheatCodeMode) {
+            if (!cheatCodeMode && !shopDialogueMode && !changelogMode) {
                 if (keys['a'] || keys['arrowleft']) {
                     player.vx = -PLAYER_SPEED;
                     player.facing = -1;
@@ -3770,6 +3827,53 @@
             if (keys['w'] || keys['arrowup']) {
                 if (!player.buyHeld) {
                     player.buyHeld = true;
+
+                    // Handle changelog mode — A/up dismisses
+                    if (changelogMode) {
+                        changelogMode = false;
+                        return;
+                    }
+                    // Handle dialogue menu — A/up confirms selection
+                    if (shopDialogueMode) {
+                        shopDialogueMode = false;
+                        if (shopDialogueSelection === 0) {
+                            changelogMode = true;
+                            changelogScroll = 0;
+                        } else {
+                            const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                            if (isMobile) {
+                                const code = prompt('Enter secret code:');
+                                if (code && code.toLowerCase() === 'password') {
+                                    if (!patrickUnlocked) {
+                                        if (!usedPatrick && !confirm('If you choose to use the powers of Patrick Wong, you will be ineligible to submit to the leaderboard. Continue?')) {
+                                            // Player declined
+                                        } else {
+                                            hasCompletedGame = true;
+                                            patrickUnlocked = true;
+                                            activeCharacter = 'patrick';
+                                            usedPatrick = true;
+                                            saveCharacterState();
+                                            saveProgress();
+                                            shopMessage = 'Patrick Wong unlocked!';
+                                            shopMessageTimer = 120;
+                                            teleportAnim = { x: 1150, y: canvas.height - 80 * S - 56, frame: 0, maxFrames: 60 };
+                                        }
+                                    } else {
+                                        shopMessage = 'Already unlocked!';
+                                        shopMessageTimer = 90;
+                                    }
+                                } else if (code !== null) {
+                                    shopMessage = 'Wrong code...';
+                                    shopMessageTimer = 90;
+                                }
+                            } else {
+                                cheatCodeMode = true;
+                                cheatCodeInput = '';
+                            }
+                        }
+                        return;
+                    }
+
                     // Near exit door? Leave shop
                     if (Math.abs(player.x - 1032) < 40) {
                         currentHole++;
@@ -3784,44 +3888,36 @@
                         }
                         return;
                     }
-                    // Near shopkeeper? Open cheat code input
+                    // Near shopkeeper? Open dialogue menu
                     if (Math.abs(player.x - 950) < 60) {
-                        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-                        if (isMobile) {
-                            const code = prompt('Enter secret code:');
-                            if (code && code.toLowerCase() === 'password') {
-                                if (!patrickUnlocked) {
-                                    if (!usedPatrick && !confirm('If you choose to use the powers of Patrick Wong, you will be ineligible to submit to the leaderboard. Continue?')) {
-                                        // Player declined
-                                    } else {
-                                        hasCompletedGame = true;
-                                        patrickUnlocked = true;
-                                        activeCharacter = 'patrick';
-                                        usedPatrick = true;
-                                        saveCharacterState();
-                                        saveProgress();
-                                        shopMessage = 'Patrick Wong unlocked!';
-                                        shopMessageTimer = 120;
-                                        teleportAnim = { x: 1150, y: canvas.height - 80 * S - 56, frame: 0, maxFrames: 60 };
-                                    }
-                                } else {
-                                    shopMessage = 'Already unlocked!';
-                                    shopMessageTimer = 90;
-                                }
-                            } else if (code !== null) {
-                                shopMessage = 'Wrong code...';
-                                shopMessageTimer = 90;
-                            }
-                        } else {
-                            cheatCodeMode = true;
-                            cheatCodeInput = '';
-                        }
+                        shopDialogueMode = true;
+                        shopDialogueSelection = 0;
                     } else {
                         tryBuy();
                     }
                 }
             } else {
                 player.buyHeld = false;
+            }
+
+            // Dialogue selection with down/S/B — toggle between options
+            if (shopDialogueMode && (keys['s'] || keys['arrowdown'] || keys['crouchKey'])) {
+                if (!player.dialogueDownHeld) {
+                    player.dialogueDownHeld = true;
+                    shopDialogueSelection = shopDialogueSelection === 0 ? 1 : 0;
+                }
+            } else if (shopDialogueMode && (keys['a'] || keys['arrowleft'])) {
+                if (!player.dialogueDownHeld) {
+                    player.dialogueDownHeld = true;
+                    shopDialogueSelection = 0;
+                }
+            } else if (shopDialogueMode && (keys['d'] || keys['arrowright'])) {
+                if (!player.dialogueDownHeld) {
+                    player.dialogueDownHeld = true;
+                    shopDialogueSelection = 1;
+                }
+            } else {
+                player.dialogueDownHeld = false;
             }
 
             // Camera
@@ -4378,6 +4474,94 @@
                 ctx.fillStyle = '#8a7a5a';
                 ctx.font = '10px Georgia';
                 ctx.fillText('Press Enter to submit, Esc to cancel', bx, by + 40);
+                ctx.textAlign = 'left';
+            }
+
+            // Shopkeeper dialogue menu
+            if (shopDialogueMode) {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(0, 0, W, H);
+                const bx = W / 2, by = H / 2;
+                ctx.fillStyle = 'rgba(42,26,10,0.95)';
+                ctx.beginPath();
+                ctx.roundRect(bx - 160, by - 65, 320, 130, 12);
+                ctx.fill();
+                ctx.strokeStyle = '#c8a86e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = '#c8a86e';
+                ctx.font = 'bold 14px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText('Shopkeeper', bx, by - 40);
+                const options = [
+                    "What's new in this town?",
+                    "I heard there's a tough guy around here..."
+                ];
+                options.forEach((opt, i) => {
+                    const oy = by - 8 + i * 30;
+                    if (i === shopDialogueSelection) {
+                        ctx.fillStyle = 'rgba(200,168,110,0.2)';
+                        ctx.beginPath();
+                        ctx.roundRect(bx - 140, oy - 14, 280, 26, 4);
+                        ctx.fill();
+                        ctx.fillStyle = '#c8a86e';
+                        ctx.font = 'bold 13px Georgia';
+                    } else {
+                        ctx.fillStyle = '#a89070';
+                        ctx.font = '13px Georgia';
+                    }
+                    const arrow = i === shopDialogueSelection ? '\u25b6 ' : '  ';
+                    ctx.fillText(arrow + opt, bx, oy + 2);
+                });
+                ctx.fillStyle = '#8a7a5a';
+                ctx.font = '10px Georgia';
+                const isMob = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                ctx.fillText(isMob ? 'B to switch, A to confirm' : 'Up/Down to select, Enter to confirm, Esc to close', bx, by + 52);
+                ctx.textAlign = 'left';
+            }
+
+            // Changelog overlay
+            if (changelogMode) {
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(0, 0, W, H);
+                const bx = W / 2, by = H / 2;
+                const boxW = 340, boxH = Math.min(H - 40, 300);
+                ctx.fillStyle = 'rgba(42,26,10,0.95)';
+                ctx.beginPath();
+                ctx.roundRect(bx - boxW / 2, by - boxH / 2, boxW, boxH, 12);
+                ctx.fill();
+                ctx.strokeStyle = '#c8a86e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = '#c8a86e';
+                ctx.font = 'bold 15px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText("What's New — " + GAME_VERSION, bx, by - boxH / 2 + 24);
+                // Draw changelog entries
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(bx - boxW / 2 + 10, by - boxH / 2 + 36, boxW - 20, boxH - 60);
+                ctx.clip();
+                let ly = by - boxH / 2 + 52 - changelogScroll;
+                ctx.textAlign = 'left';
+                for (const entry of CHANGELOG) {
+                    ctx.fillStyle = '#c8a86e';
+                    ctx.font = 'bold 12px Georgia';
+                    ctx.fillText(entry.version, bx - boxW / 2 + 20, ly);
+                    ly += 18;
+                    ctx.fillStyle = '#d8c8a8';
+                    ctx.font = '11px Georgia';
+                    for (const line of entry.changes) {
+                        ctx.fillText('• ' + line, bx - boxW / 2 + 30, ly);
+                        ly += 16;
+                    }
+                    ly += 10;
+                }
+                ctx.restore();
+                ctx.fillStyle = '#8a7a5a';
+                ctx.font = '10px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText('Press Esc or Enter to close', bx, by + boxH / 2 - 10);
                 ctx.textAlign = 'left';
             }
 
