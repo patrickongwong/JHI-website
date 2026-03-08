@@ -425,7 +425,7 @@
                 .then(buf => audioCtx.decodeAudioData(buf))
                 .then(decoded => { sounds[name] = decoded; });
         }
-        loadSound('swing', 'sounds/swing.wav');
+        loadSound('swing', 'sounds/swing.mp3');
         loadSound('applause', 'sounds/applause.wav');
 
         function playSound(name, volume = 1.0) {
