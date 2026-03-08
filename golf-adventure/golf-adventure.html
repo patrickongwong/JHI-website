@@ -3246,9 +3246,32 @@
             const legTop = torsoBot;
             const footY = H;
 
-            const lFootX = (-5 - legSwing) * u;
-            const rFootX = (5 + legSwing) * u;
+            let lFootX = (-5 - legSwing) * u;
+            let rFootX = (5 + legSwing) * u;
             const nearBall = Math.abs(player.x - ball.x) < HIT_RANGE && ball.onGround;
+
+            // Golf swing state
+            let swingT = 0, bodyTwist = 0, handAngle = 0;
+            const isSwinging = player.swingFrame > 0;
+            if (isSwinging) {
+                swingT = 1 - (player.swingFrame / 20); // 0→1
+                // Body twist: wind up backward, unwind through, follow through forward
+                if (swingT < 0.4) {
+                    bodyTwist = -0.15 * (1 - swingT / 0.4);
+                } else {
+                    bodyTwist = 0.18 * (swingT - 0.4) / 0.6;
+                }
+                // Hand angle: backswing (up-right) → impact (down) → follow-through (up-left)
+                const startA = -Math.PI * 0.35;
+                const endA = Math.PI * 1.2;
+                const eased = swingT < 0.4
+                    ? swingT / 0.4 * 0.45
+                    : 0.45 + (swingT - 0.4) / 0.6 * 0.55;
+                handAngle = startA + eased * (endA - startA);
+                // Wider stance during swing
+                lFootX = (-8 - legSwing) * u;
+                rFootX = (8 + legSwing) * u;
+            }
 
             if (activeCharacter === 'patrick') {
                 drawPatrickBody(u, headTop, headCenter, neckY, torsoTop, torsoBot, legTop, footY, H, legSwing, lFootX, rFootX, nearBall);
@@ -3304,6 +3327,13 @@
                     }
 
                     // --- Body (shirt based on equipment tier) ---
+                    // Apply body twist during swing (rotate upper body around waist)
+                    if (isSwinging) {
+                        ctx.save();
+                        ctx.translate(0, torsoBot);
+                        ctx.rotate(bodyTwist);
+                        ctx.translate(0, -torsoBot);
+                    }
                     const shirtColors = SHIRT_TIERS[equipment.shirt].colors;
                     const shirtGrad = ctx.createLinearGradient(-8 * u, torsoTop, 8 * u, torsoBot);
                     shirtGrad.addColorStop(0, shirtColors[0]);
@@ -3391,16 +3421,38 @@
                     // Left sleeve + arm
                     ctx.strokeStyle = shirtColors[1];
                     ctx.lineWidth = 5 * u;
-                    ctx.beginPath();
-                    ctx.moveTo(-9 * u, torsoTop + 2 * u);
-                    ctx.lineTo(-12 * u, torsoTop + 8 * u);
-                    ctx.stroke();
-                    ctx.strokeStyle = '#c4956a';
-                    ctx.lineWidth = 3.5 * u;
-                    ctx.beginPath();
-                    ctx.moveTo(-12 * u, torsoTop + 8 * u);
-                    ctx.lineTo(-13 * u, torsoBot - 2 * u);
-                    ctx.stroke();
+                    if (isSwinging) {
+                        // During swing: left arm reaches across to grip club with right hand
+                        const shoulderLX = -9 * u, shoulderLY = torsoTop + 2 * u;
+                        const armReach = 18 * u;
+                        const gripX = Math.cos(handAngle) * armReach;
+                        const gripY = torsoTop + 6 * u + Math.sin(handAngle) * armReach;
+                        const elbowLX = (shoulderLX + gripX) / 2 - 2 * u;
+                        const elbowLY = (shoulderLY + gripY) / 2 - 4 * u;
+                        // Sleeve
+                        ctx.beginPath();
+                        ctx.moveTo(shoulderLX, shoulderLY);
+                        ctx.lineTo(elbowLX, elbowLY);
+                        ctx.stroke();
+                        // Forearm
+                        ctx.strokeStyle = '#c4956a';
+                        ctx.lineWidth = 3.5 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(elbowLX, elbowLY);
+                        ctx.lineTo(gripX, gripY);
+                        ctx.stroke();
+                    } else {
+                        ctx.beginPath();
+                        ctx.moveTo(-9 * u, torsoTop + 2 * u);
+                        ctx.lineTo(-12 * u, torsoTop + 8 * u);
+                        ctx.stroke();
+                        ctx.strokeStyle = '#c4956a';
+                        ctx.lineWidth = 3.5 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(-12 * u, torsoTop + 8 * u);
+                        ctx.lineTo(-13 * u, torsoBot - 2 * u);
+                        ctx.stroke();
+                    }
 
                     // Right sleeve + arm (holding club if near ball, or range finder)
                     ctx.strokeStyle = shirtColors[1];
@@ -3412,31 +3464,47 @@
 
                     ctx.strokeStyle = '#c4956a';
                     ctx.lineWidth = 3.5 * u;
-                    if (player.swingFrame > 0) {
-                        // Golf swing animation
-                        const t = player.swingFrame / 20; // 1.0 → 0.0
-                        const swingAngle = (1 - t) * Math.PI * 0.8 - Math.PI * 0.2; // backswing to follow-through
-                        const armLen = 14 * u;
-                        const handX = 9 * u + Math.cos(swingAngle) * armLen;
-                        const handY = torsoTop + 6 * u + Math.sin(swingAngle) * armLen;
+                    if (isSwinging) {
+                        // Golf swing: right arm follows same arc as left
+                        const shoulderRX = 9 * u, shoulderRY = torsoTop + 2 * u;
+                        const armReach = 18 * u;
+                        const gripX = Math.cos(handAngle) * armReach;
+                        const gripY = torsoTop + 6 * u + Math.sin(handAngle) * armReach;
+                        const elbowRX = (shoulderRX + gripX) / 2 + 2 * u;
+                        const elbowRY = (shoulderRY + gripY) / 2 - 3 * u;
+                        // Sleeve
+                        ctx.strokeStyle = shirtColors[1];
+                        ctx.lineWidth = 5 * u;
                         ctx.beginPath();
-                        ctx.moveTo(12 * u, torsoTop + 8 * u);
-                        ctx.lineTo(handX, handY);
+                        ctx.moveTo(shoulderRX, shoulderRY);
+                        ctx.lineTo(elbowRX, elbowRY);
                         ctx.stroke();
-                        // Club shaft follows arm
-                        const clubLen = 18 * u;
-                        const clubX = handX + Math.cos(swingAngle) * clubLen;
-                        const clubY = handY + Math.sin(swingAngle) * clubLen;
+                        // Forearm
+                        ctx.strokeStyle = '#c4956a';
+                        ctx.lineWidth = 3.5 * u;
+                        ctx.beginPath();
+                        ctx.moveTo(elbowRX, elbowRY);
+                        ctx.lineTo(gripX, gripY);
+                        ctx.stroke();
+                        // Hands (both gripping)
+                        ctx.fillStyle = '#c4956a';
+                        ctx.beginPath();
+                        ctx.arc(gripX, gripY, 2.5 * u, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Club shaft from hands
+                        const clubLen = 22 * u;
+                        const clubX = gripX + Math.cos(handAngle) * clubLen;
+                        const clubY = gripY + Math.sin(handAngle) * clubLen;
                         ctx.strokeStyle = SHAFT_TIERS[equipment.shaft].color;
                         ctx.lineWidth = 2 * u;
                         ctx.beginPath();
-                        ctx.moveTo(handX, handY);
+                        ctx.moveTo(gripX, gripY);
                         ctx.lineTo(clubX, clubY);
                         ctx.stroke();
                         // Club head
                         ctx.fillStyle = CLUB_TIERS[equipment.club].color;
                         ctx.beginPath();
-                        ctx.arc(clubX, clubY, 4 * u, 0, Math.PI * 2);
+                        ctx.roundRect(clubX - 4 * u, clubY - 2 * u, 8 * u, 4 * u, 2);
                         ctx.fill();
                     } else if (player.rangeFinder) {
                         // Right arm raised, holding range finder to eye
@@ -3631,6 +3699,9 @@
                             ctx.stroke();
                         }
                     }
+
+                    // Close body twist rotation for swing
+                    if (isSwinging) ctx.restore();
 
                 } // end JJ standing body
 
