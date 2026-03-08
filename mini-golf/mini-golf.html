@@ -152,6 +152,14 @@
 
         .scorecard .hole-label { color: rgba(255,255,255,0.5); }
         .scorecard .hole-score { color: #c9a84c; font-weight: 700; }
+
+        #leaderboardTable::-webkit-scrollbar { width: 6px; }
+        #leaderboardTable::-webkit-scrollbar-thumb { background: #c9a84c; border-radius: 3px; }
+        #leaderboardBody tr { border-bottom: 1px solid rgba(255,255,255,0.08); }
+        #leaderboardBody td { padding: 5px 4px; font-size: 0.85rem; color: rgba(255,255,255,0.8); }
+        #leaderboardBody tr:nth-child(1) td { color: #ffd700; }
+        #leaderboardBody tr:nth-child(2) td { color: #c0c0c0; }
+        #leaderboardBody tr:nth-child(3) td { color: #cd7f32; }
     </style>
 </head>
 <body>
@@ -188,7 +196,28 @@
     <div class="scorecard" id="scorecard"></div>
     <br>
     <button id="shareBtn">Share Score</button>
-    <button id="restartBtn">Play Again</button>
+    <div id="leaderboardSection" style="margin-top:18px;width:min(400px,85vw);text-align:center;">
+        <div id="leaderboardForm">
+            <input type="text" id="playerName" placeholder="Enter your name" maxlength="24"
+                style="padding:10px 16px;font-size:1rem;border:2px solid #c9a84c;border-radius:6px;background:rgba(0,0,0,0.5);color:#fff;font-family:Georgia,serif;width:70%;outline:none;">
+            <button id="submitScoreBtn" style="margin-left:6px;">Submit</button>
+        </div>
+        <p id="leaderboardStatus" style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin:6px 0 0;"></p>
+        <div id="leaderboardTable" style="display:none;margin-top:12px;max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#c9a84c transparent;">
+            <table style="width:100%;border-collapse:collapse;font-family:Georgia,serif;">
+                <thead>
+                    <tr style="color:#c9a84c;font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;">
+                        <th style="padding:6px 4px;text-align:left;">#</th>
+                        <th style="padding:6px 4px;text-align:left;">Name</th>
+                        <th style="padding:6px 4px;text-align:right;">Score</th>
+                        <th style="padding:6px 4px;text-align:right;">Date</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody"></tbody>
+            </table>
+        </div>
+    </div>
+    <button id="restartBtn" style="margin-top:14px;">Play Again</button>
 </div>
 
 <script>
@@ -840,8 +869,87 @@ async function shareScore() {
 
 document.getElementById('shareBtn').addEventListener('click', shareScore);
 
+// ==================== LEADERBOARD ====================
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS49XDtAb3svIzIoEjvpzz19aPpfjJcRxZUuxI8qFPo-xemZnWM1-VdE-wiGhtk_iS-UtZD_hk1gRbl/pub?output=csv';
+const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSd4E6PN9B8Ukg_aTcTXO-v9DqEyLHi5JBpFlyUZakLIcNMXGg/formResponse';
+const ENTRY_GAME = 'entry.1262614880';
+const ENTRY_NAME = 'entry.1735789976';
+const ENTRY_SCORE = 'entry.468048868';
+const GAME_NAME = 'mini-golf';
+
+// Pre-fill name from localStorage
+const savedName = localStorage.getItem('jhi-leaderboard-name');
+if (savedName) document.getElementById('playerName').value = savedName;
+
+async function submitScore() {
+    const nameInput = document.getElementById('playerName');
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+
+    localStorage.setItem('jhi-leaderboard-name', name);
+    const totalStrokes = scores.reduce((a, b) => a + b, 0);
+
+    const formData = new URLSearchParams();
+    formData.append(ENTRY_GAME, GAME_NAME);
+    formData.append(ENTRY_NAME, name);
+    formData.append(ENTRY_SCORE, totalStrokes);
+
+    document.getElementById('submitScoreBtn').disabled = true;
+    document.getElementById('leaderboardStatus').textContent = 'Submitting...';
+
+    try {
+        await fetch(FORM_URL, { method: 'POST', mode: 'no-cors', body: formData });
+        document.getElementById('leaderboardForm').style.display = 'none';
+        document.getElementById('leaderboardStatus').textContent = 'Score submitted!';
+        setTimeout(() => fetchLeaderboard(), 1500);
+    } catch (e) {
+        document.getElementById('leaderboardStatus').textContent = 'Submit failed. Try again.';
+        document.getElementById('submitScoreBtn').disabled = false;
+    }
+}
+
+async function fetchLeaderboard() {
+    try {
+        const res = await fetch(SHEET_CSV_URL + '&_t=' + Date.now());
+        const csv = await res.text();
+        const rows = csv.trim().split('\n').slice(1);
+        const entries = rows.map(row => {
+            const cols = row.split(',');
+            return { game: cols[1], name: cols[2], score: parseInt(cols[3]), date: cols[0] };
+        }).filter(e => e.game === GAME_NAME && !isNaN(e.score))
+          .sort((a, b) => a.score - b.score)
+          .slice(0, 20);
+
+        const tbody = document.getElementById('leaderboardBody');
+        tbody.innerHTML = '';
+        if (entries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,0.4);padding:12px;">No scores yet. Be the first!</td></tr>';
+        } else {
+            entries.forEach((e, i) => {
+                const tr = document.createElement('tr');
+                const dateStr = e.date ? e.date.split(' ')[0] : '';
+                const safeName = e.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                tr.innerHTML = `<td style="text-align:left;">${i + 1}</td><td style="text-align:left;">${safeName}</td><td style="text-align:right;">${e.score}</td><td style="text-align:right;font-size:0.75rem;opacity:0.6;">${dateStr}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+        document.getElementById('leaderboardTable').style.display = '';
+        document.getElementById('leaderboardStatus').textContent = '';
+    } catch (e) {
+        document.getElementById('leaderboardStatus').textContent = 'Could not load leaderboard.';
+    }
+}
+
+document.getElementById('submitScoreBtn').addEventListener('click', submitScore);
+document.getElementById('playerName').addEventListener('keydown', e => { if (e.key === 'Enter') submitScore(); });
+
 document.getElementById('restartBtn').addEventListener('click', () => {
     document.getElementById('gameOverlay').classList.add('hidden');
+    document.getElementById('leaderboardForm').style.display = '';
+    document.getElementById('leaderboardTable').style.display = 'none';
+    document.getElementById('leaderboardBody').innerHTML = '';
+    document.getElementById('submitScoreBtn').disabled = false;
+    document.getElementById('leaderboardStatus').textContent = '';
     currentHole = 0;
     scores = [];
     initHole();
