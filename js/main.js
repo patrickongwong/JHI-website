@@ -325,7 +325,22 @@ function updateBall() {
 
     // Position the golf hole
     const holeX = (LANDING_X / 100) * window.innerWidth;
-    const holeY = (LANDING_Y / 100) * window.innerHeight;
+    let holeY = (LANDING_Y / 100) * window.innerHeight;
+
+    // On mobile, cap the hole so it doesn't go below the footer-grass curve
+    const isMobileView = window.innerWidth <= 768;
+    if (isMobileView) {
+        const footerGrass = document.querySelector('.footer-grass');
+        if (footerGrass) {
+            const grassRect = footerGrass.getBoundingClientRect();
+            // Position hole so it sits just above the grass curve (offset for hole height + flag)
+            const maxHoleY = grassRect.top - 30;
+            if (holeY + 10 > maxHoleY) {
+                holeY = maxHoleY - 10;
+            }
+        }
+    }
+
     golfHole.style.transform = `translate(${holeX - 30}px, ${holeY + 10}px)`;
 
     // Show hole only when contact section is in view
