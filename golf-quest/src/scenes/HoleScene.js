@@ -99,6 +99,16 @@ export class HoleScene extends Phaser.Scene {
             });
         }
 
+        // Spawn enemies from tilemap object layer
+        this.enemies = [];
+        this.enemySpawns.forEach(spawn => {
+            const enemy = new Enemy(this, spawn.x, spawn.y, spawn.patrolWidth);
+            this.enemies.push(enemy);
+        });
+
+        // Set up enemy collision detection (ball-enemy and projectile-player)
+        this.setupEnemyCollisions();
+
         // HUD overlay
         this.hud = new HUD(this);
     }
@@ -198,6 +208,53 @@ export class HoleScene extends Phaser.Scene {
                 { isSensor: true, isStatic: true, label: 'hole' }
             );
         }
+    }
+
+    setupEnemyCollisions() {
+        this.matter.world.on('collisionstart', (event) => {
+            event.pairs.forEach(pair => {
+                const bodyA = pair.bodyA;
+                const bodyB = pair.bodyB;
+                const labels = [bodyA.label, bodyB.label];
+
+                // Ball hitting an enemy
+                if (labels.includes('ball') && labels.includes('enemy')) {
+                    const enemyBody = bodyA.label === 'enemy' ? bodyA : bodyB;
+                    if (enemyBody.enemyRef) {
+                        enemyBody.enemyRef.takeBallDamage();
+                    }
+                }
+
+                // Sand projectile hitting player
+                if (labels.includes('sandProjectile') && labels.includes('player')) {
+                    if (this.player) {
+                        this.player.takeDamage(1);
+                    }
+                    // Destroy the projectile
+                    const projBody = bodyA.label === 'sandProjectile' ? bodyA : bodyB;
+                    const projGO = projBody.gameObject;
+                    if (projGO && projGO.enemyOwner) {
+                        projGO.enemyOwner.destroyProjectile(projGO);
+                    } else if (projGO) {
+                        projGO.destroy();
+                    }
+                }
+
+                // Sand projectile hitting ground (static tile bodies)
+                if (labels.includes('sandProjectile')) {
+                    const otherLabel = bodyA.label === 'sandProjectile' ? bodyB.label : bodyA.label;
+                    if (otherLabel !== 'player' && otherLabel !== 'ball' && otherLabel !== 'enemy') {
+                        const projBody = bodyA.label === 'sandProjectile' ? bodyA : bodyB;
+                        const projGO = projBody.gameObject;
+                        if (projGO && projGO.enemyOwner) {
+                            projGO.enemyOwner.destroyProjectile(projGO);
+                        } else if (projGO) {
+                            projGO.destroy();
+                        }
+                    }
+                }
+            });
+        });
     }
 
     setupHazardCollisions() {
@@ -419,6 +476,11 @@ export class HoleScene extends Phaser.Scene {
     update(time, delta) {
         if (this.player) this.player.update();
         if (this.ball) this.ball.update();
+
+        // Update enemies
+        if (this.enemies) {
+            this.enemies.forEach(e => e.update(this.player));
+        }
 
         // Check hazard/completion logic
         if (!this.holeComplete) {
