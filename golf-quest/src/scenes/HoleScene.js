@@ -69,6 +69,9 @@ export class HoleScene extends Phaser.Scene {
         // Hole completion state
         this.holeComplete = false;
 
+        // Range finder zoom state
+        this.isZoomedOut = false;
+
         // Create player at spawn point
         const gs = this.registry.get('gameState') || {};
         const activeCharacter = gs.activeCharacter || 'jj';
@@ -530,6 +533,29 @@ export class HoleScene extends Phaser.Scene {
                 const newX = ast.startX + Math.sin(time * 0.001 + ast.phase) * ast.amplitude;
                 const newY = ast.startY + Math.cos(time * 0.0008 + ast.phase) * ast.amplitude * 0.5;
                 ast.setPosition(newX, newY);
+            });
+        }
+
+        // Range finder: hold Down key to zoom out and see full course
+        const isDown = this.input.keyboard.addKey('S').isDown ||
+            this.input.keyboard.addKey('DOWN').isDown ||
+            (this.mobileControls && this.mobileControls.getMovement().down);
+
+        if (isDown && !this.isZoomedOut) {
+            this.isZoomedOut = true;
+            this.tweens.add({
+                targets: this.cameras.main,
+                zoom: 0.4,
+                duration: 500,
+                ease: 'Quad.easeOut'
+            });
+        } else if (!isDown && this.isZoomedOut) {
+            this.isZoomedOut = false;
+            this.tweens.add({
+                targets: this.cameras.main,
+                zoom: 1,
+                duration: 500,
+                ease: 'Quad.easeOut'
             });
         }
 

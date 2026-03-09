@@ -37,6 +37,7 @@ export class Ball {
         // State tracking
         this.strokes = 0;
         this.isMoving = false;
+        this.wasMoving = false;
         this.movingThreshold = 0.2;
 
         // Wind force (set by HoleScene for storm biomes)
@@ -237,15 +238,18 @@ export class Ball {
         this.graphics.lineStyle(1, 0xcccccc, 1);
         this.graphics.strokeCircle(ballPos.x, ballPos.y, this.radius);
 
-        // Camera follow: ball when moving, player when stopped
-        if (this.isMoving) {
-            this.scene.cameras.main.startFollow(
-                { x: ballPos.x, y: ballPos.y },
-                false, 0.1, 0.1
-            );
-        } else if (this.scene.player) {
-            this.scene.cameras.main.startFollow(this.scene.player, false, 0.1, 0.1);
+        // Camera follow transitions: only switch target on state change
+        if (this.isMoving && !this.wasMoving) {
+            // Ball just started moving — follow ball
+            this.scene.cameras.main.startFollow(this.sprite, false, 0.08, 0.08);
         }
+        if (!this.isMoving && this.wasMoving) {
+            // Ball just stopped — follow player
+            if (this.scene.player) {
+                this.scene.cameras.main.startFollow(this.scene.player.sprite, false, 0.1, 0.1);
+            }
+        }
+        this.wasMoving = this.isMoving;
     }
 
     getSpeed() {
