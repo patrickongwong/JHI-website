@@ -1,6 +1,7 @@
 import { HoleConfig, SkyConfig } from '../config/HoleConfig.js';
 import { PhysicsConfig } from '../systems/PhysicsConfig.js';
 import { ScoreManager } from '../systems/ScoreManager.js';
+import { BackgroundSystem } from '../systems/BackgroundSystem.js';
 import { Player } from '../entities/Player.js';
 import { Ball } from '../entities/Ball.js';
 import { HUD } from '../ui/HUD.js';
@@ -25,8 +26,8 @@ export class HoleScene extends Phaser.Scene {
         const biomePhysics = PhysicsConfig.biomes[config.biome];
         this.matter.world.setGravity(0, biomePhysics.gravity);
 
-        // Sky background (fixed, fills screen)
-        this.createSky(skyConfig);
+        // Sky & background system (gradient, stars, sun/moon, hills, clouds, rain)
+        this.background = new BackgroundSystem(this, skyConfig, config.biome);
 
         // Load tilemap
         const map = this.make.tilemap({ key: config.tilemap });
@@ -68,13 +69,16 @@ export class HoleScene extends Phaser.Scene {
         this.holeComplete = false;
 
         // Create player at spawn point
-        const gs = this.registry.get('equipment');
-        this.player = new Player(this, this.playerSpawn.x, this.playerSpawn.y);
-        this.player.setEquipment(gs);
+        const gs = this.registry.get('gameState') || {};
+        const activeCharacter = gs.activeCharacter || 'jj';
+        const isPsychic = activeCharacter === 'patrick';
+        const equipment = this.registry.get('equipment');
+        this.player = new Player(this, this.playerSpawn.x, this.playerSpawn.y, activeCharacter);
+        this.player.setEquipment(equipment);
         this.cameras.main.startFollow(this.player.sprite, false, 0.1, 0.1);
 
         // Create ball at spawn point
-        this.ball = new Ball(this, this.ballSpawn.x, this.ballSpawn.y);
+        this.ball = new Ball(this, this.ballSpawn.x, this.ballSpawn.y, isPsychic);
 
         // Set up hazard collision events
         this.setupHazardCollisions();
@@ -119,15 +123,6 @@ export class HoleScene extends Phaser.Scene {
 
         // HUD overlay
         this.hud = new HUD(this);
-    }
-
-    createSky(skyConfig) {
-        const { width, height } = this.scale;
-        const sky = this.add.graphics();
-        sky.fillGradientStyle(skyConfig.top, skyConfig.top, skyConfig.bottom, skyConfig.bottom, 1);
-        sky.fillRect(0, 0, width * 3, height);
-        sky.setScrollFactor(0);
-        sky.setDepth(-10);
     }
 
     parseObjectLayers(map) {
@@ -499,6 +494,7 @@ export class HoleScene extends Phaser.Scene {
     }
 
     update(time, delta) {
+        if (this.background) this.background.update(time);
         if (this.player) this.player.update();
         if (this.ball) this.ball.update();
 
