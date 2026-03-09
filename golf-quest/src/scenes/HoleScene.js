@@ -58,6 +58,12 @@ export class HoleScene extends Phaser.Scene {
         // Store map reference
         this.map = map;
 
+        // Create hazard sensor bodies
+        this.createHazardSensors();
+
+        // Hole completion state
+        this.holeComplete = false;
+
         // Create player at spawn point
         const gs = this.registry.get('equipment');
         this.player = new Player(this, this.playerSpawn.x, this.playerSpawn.y);
@@ -66,6 +72,9 @@ export class HoleScene extends Phaser.Scene {
 
         // Create ball at spawn point
         this.ball = new Ball(this, this.ballSpawn.x, this.ballSpawn.y);
+
+        // Set up hazard collision events
+        this.setupHazardCollisions();
 
         // HUD overlay
         this.hud = new HUD(this);
@@ -131,9 +140,226 @@ export class HoleScene extends Phaser.Scene {
         }
     }
 
+    createHazardSensors() {
+        // Water sensors
+        this.waterZones.forEach(zone => {
+            this.matter.add.rectangle(
+                zone.x + zone.width / 2, zone.y + zone.height / 2,
+                zone.width, zone.height,
+                { isSensor: true, isStatic: true, label: 'water' }
+            );
+        });
+
+        // Sand sensors
+        this.sandZones.forEach(zone => {
+            this.matter.add.rectangle(
+                zone.x + zone.width / 2, zone.y + zone.height / 2,
+                zone.width, zone.height,
+                { isSensor: true, isStatic: true, label: 'sand' }
+            );
+        });
+
+        // Ice sensors
+        this.iceZones.forEach(zone => {
+            this.matter.add.rectangle(
+                zone.x + zone.width / 2, zone.y + zone.height / 2,
+                zone.width, zone.height,
+                { isSensor: true, isStatic: true, label: 'ice' }
+            );
+        });
+
+        // Hole sensor (the golf hole)
+        if (this.holePosition) {
+            this.holeSensor = this.matter.add.circle(
+                this.holePosition.x, this.holePosition.y, 20,
+                { isSensor: true, isStatic: true, label: 'hole' }
+            );
+        }
+    }
+
+    setupHazardCollisions() {
+        this.matter.world.on('collisionstart', (event) => {
+            event.pairs.forEach(pair => {
+                const labels = [pair.bodyA.label, pair.bodyB.label];
+
+                if (!labels.includes('ball')) return;
+
+                if (labels.includes('water')) {
+                    this.onWaterHazard();
+                }
+                if (labels.includes('sand')) {
+                    this.ball.setInSand(true);
+                    this.showStatus('Sand trap!');
+                }
+                if (labels.includes('ice')) {
+                    this.ball.setOnIce(true);
+                    this.showStatus('Ice!');
+                }
+            });
+        });
+
+        this.matter.world.on('collisionend', (event) => {
+            event.pairs.forEach(pair => {
+                const labels = [pair.bodyA.label, pair.bodyB.label];
+
+                if (!labels.includes('ball')) return;
+
+                if (labels.includes('sand')) {
+                    this.ball.setInSand(false);
+                }
+                if (labels.includes('ice')) {
+                    this.ball.setOnIce(false);
+                }
+            });
+        });
+    }
+
+    onWaterHazard() {
+        // Reset ball to spawn, add penalty stroke, award coins
+        this.ball.strokes += PhysicsConfig.ball.waterResetPenalty;
+        this.ball.reset(this.ballSpawn.x, this.ballSpawn.y);
+
+        const gs = this.registry.get('gameState');
+        if (gs) {
+            gs.coins = (gs.coins || 0) + 10;
+            this.registry.set('gameState', gs);
+        }
+
+        this.showStatus('Water! +1 penalty');
+    }
+
+    showStatus(message) {
+        const text = this.add.text(
+            this.cameras.main.worldView.centerX,
+            this.cameras.main.worldView.centerY - 60,
+            message,
+            {
+                fontFamily: 'Georgia, serif',
+                fontSize: '24px',
+                color: '#fff',
+                stroke: '#000',
+                strokeThickness: 3
+            }
+        ).setOrigin(0.5).setDepth(200);
+
+        this.tweens.add({
+            targets: text,
+            y: text.y - 40,
+            alpha: 0,
+            duration: 1500,
+            onComplete: () => text.destroy()
+        });
+    }
+
+    checkHoleCompletion() {
+        if (this.holeComplete) return;
+
+        const ball = this.ball.sprite;
+        const dx = ball.position.x - this.holePosition.x;
+        const dy = ball.position.y - this.holePosition.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const speed = this.ball.getSpeed();
+
+        if (dist < 40 && speed < PhysicsConfig.ball.holeSpeedThreshold) {
+            this.holeComplete = true;
+            this.onHoleComplete();
+        }
+    }
+
+    onHoleComplete() {
+        // Play applause sound
+        if (this.cache.audio.exists('applause')) {
+            this.sound.play('applause');
+        }
+
+        // Calculate score
+        const strokes = this.ball.strokes;
+        const par = this.holeConfig.par;
+        const scoreDiff = strokes - par;
+        const coinsEarned = Math.max(10, 50 - scoreDiff * 10);
+
+        // Save to gameState
+        const gs = this.registry.get('gameState') || {};
+        if (!gs.scores) gs.scores = [];
+        gs.scores[this.holeNumber - 1] = strokes;
+        gs.coins = (gs.coins || 0) + coinsEarned;
+        this.registry.set('gameState', gs);
+
+        // Determine score label
+        let label = `${strokes} strokes`;
+        if (scoreDiff === 0) label = 'Par!';
+        else if (scoreDiff === -1) label = 'Birdie!';
+        else if (scoreDiff === -2) label = 'Eagle!';
+        else if (scoreDiff <= -3) label = 'Albatross!';
+        else if (scoreDiff === 1) label = 'Bogey';
+        else if (scoreDiff === 2) label = 'Double Bogey';
+
+        // Show completion overlay
+        const cx = this.cameras.main.worldView.centerX;
+        const cy = this.cameras.main.worldView.centerY;
+
+        const overlay = this.add.rectangle(cx, cy, 300, 180, 0x000000, 0.7)
+            .setDepth(300).setOrigin(0.5);
+
+        const title = this.add.text(cx, cy - 50, 'Hole Complete!', {
+            fontFamily: 'Georgia, serif',
+            fontSize: '28px',
+            color: '#ffd700',
+            stroke: '#000',
+            strokeThickness: 3
+        }).setOrigin(0.5).setDepth(301);
+
+        const scoreText = this.add.text(cx, cy, label, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '22px',
+            color: '#fff',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setOrigin(0.5).setDepth(301);
+
+        const coinText = this.add.text(cx, cy + 35, `+${coinsEarned} coins`, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '18px',
+            color: '#ffd700',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setOrigin(0.5).setDepth(301);
+
+        // Auto-advance after delay
+        this.time.delayedCall(2500, () => {
+            overlay.destroy();
+            title.destroy();
+            scoreText.destroy();
+            coinText.destroy();
+
+            const totalHoles = 9;
+            if (this.holeNumber < totalHoles) {
+                this.scene.restart({ hole: this.holeNumber + 1 });
+            } else {
+                this.scene.start('MenuScene');
+            }
+        });
+    }
+
+    checkOutOfBounds() {
+        if (!this.ball || !this.map) return;
+        const ballY = this.ball.sprite.position.y;
+        if (ballY > this.map.heightInPixels + 50) {
+            this.ball.strokes += 1;
+            this.ball.reset(this.ballSpawn.x, this.ballSpawn.y);
+            this.showStatus('Out of bounds! +1 penalty');
+        }
+    }
+
     update(time, delta) {
         if (this.player) this.player.update();
         if (this.ball) this.ball.update();
+
+        // Check hazard/completion logic
+        if (!this.holeComplete) {
+            this.checkHoleCompletion();
+            this.checkOutOfBounds();
+        }
 
         const gs = this.registry.get('gameState');
         if (this.hud && this.player) {

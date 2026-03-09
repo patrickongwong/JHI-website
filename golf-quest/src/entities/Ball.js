@@ -171,6 +171,33 @@ export class Ball {
         }
     }
 
+    getSpeed() {
+        const velocity = this.sprite.velocity;
+        return Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+    }
+
+    setInSand(inSand) {
+        const cfg = PhysicsConfig.ball;
+        if (inSand) {
+            this.sprite.friction = cfg.sandFriction;
+            this.sprite.frictionAir = cfg.frictionAir * 3;
+        } else {
+            this.sprite.friction = cfg.friction;
+            this.sprite.frictionAir = cfg.frictionAir;
+        }
+    }
+
+    setOnIce(onIce) {
+        const cfg = PhysicsConfig.ball;
+        if (onIce) {
+            this.sprite.friction = 0.001;
+            this.sprite.frictionAir = cfg.frictionAir * 0.3;
+        } else {
+            this.sprite.friction = cfg.friction;
+            this.sprite.frictionAir = cfg.frictionAir;
+        }
+    }
+
     reset(x, y) {
         this.scene.matter.body.setPosition(this.sprite, { x, y });
         this.scene.matter.body.setVelocity(this.sprite, { x: 0, y: 0 });
