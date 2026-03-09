@@ -2,6 +2,7 @@ import { HoleConfig, SkyConfig } from '../config/HoleConfig.js';
 import { PhysicsConfig } from '../systems/PhysicsConfig.js';
 import { Player } from '../entities/Player.js';
 import { Ball } from '../entities/Ball.js';
+import { HUD } from '../ui/HUD.js';
 
 export class HoleScene extends Phaser.Scene {
     constructor() {
@@ -66,14 +67,8 @@ export class HoleScene extends Phaser.Scene {
         // Create ball at spawn point
         this.ball = new Ball(this, this.ballSpawn.x, this.ballSpawn.y);
 
-        // Temp: hole info text
-        this.add.text(16, 16, `Hole ${config.hole} | Par ${config.par} | ${config.biome} | ${config.time}`, {
-            fontFamily: 'Georgia, serif',
-            fontSize: '16px',
-            color: '#fff',
-            stroke: '#000',
-            strokeThickness: 2
-        }).setScrollFactor(0).setDepth(100);
+        // HUD overlay
+        this.hud = new HUD(this);
     }
 
     createSky(skyConfig) {
@@ -139,5 +134,10 @@ export class HoleScene extends Phaser.Scene {
     update(time, delta) {
         if (this.player) this.player.update();
         if (this.ball) this.ball.update();
+
+        const gs = this.registry.get('gameState');
+        if (this.hud && this.player) {
+            this.hud.update(this.holeConfig, this.player, gs);
+        }
     }
 }
