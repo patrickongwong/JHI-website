@@ -40,6 +40,15 @@ export class HUD {
             color: '#c9a84c'
         }).setOrigin(1, 0).setScrollFactor(0).setDepth(depth);
 
+        // Wind indicator (top center-right)
+        this.windText = scene.add.text(600, 50, '', {
+            fontFamily: 'Georgia, serif',
+            fontSize: '14px',
+            color: '#aaaaaa',
+            stroke: '#000000',
+            strokeThickness: 2
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(depth);
+
         // Status text (bottom center)
         this.statusText = scene.add.text(600, 575, '', {
             fontFamily: 'Georgia, serif',
@@ -50,7 +59,7 @@ export class HUD {
         }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(depth);
     }
 
-    update(holeConfig, player, gameState) {
+    update(holeConfig, player, gameState, windActive) {
         if (holeConfig) {
             this.holeText.setText(`Hole ${holeConfig.hole}/9 | Par ${holeConfig.par}`);
         }
@@ -68,6 +77,13 @@ export class HUD {
             const coins = gameState.coins !== undefined ? gameState.coins : 0;
             this.strokesText.setText(`Strokes: ${strokes}`);
             this.coinsText.setText(`Coins: ${coins}`);
+        }
+
+        // Wind indicator
+        if (windActive) {
+            this.windText.setText('WIND \u2192');
+        } else {
+            this.windText.setText('');
         }
 
         // Status timer countdown
@@ -91,6 +107,7 @@ export class HUD {
         if (this.strokesText) this.strokesText.destroy();
         if (this.heartsText) this.heartsText.destroy();
         if (this.coinsText) this.coinsText.destroy();
+        if (this.windText) this.windText.destroy();
         if (this.statusText) this.statusText.destroy();
     }
 }

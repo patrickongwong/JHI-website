@@ -39,6 +39,9 @@ export class Ball {
         this.isMoving = false;
         this.movingThreshold = 0.2;
 
+        // Wind force (set by HoleScene for storm biomes)
+        this.windForce = 0;
+
         // Set up input
         this.setupInput();
 
@@ -148,6 +151,7 @@ export class Ball {
 
         this.trajectoryGraphics.fillStyle(0xffffff, 0.6);
         for (let i = 0; i < 40; i++) {
+            simVx += this.windForce * 50;
             simVy += gravity;
             simX += simVx;
             simY += simVy;
@@ -221,6 +225,11 @@ export class Ball {
             this.isMoving = speed > this.movingThreshold;
         }
 
+        // Apply wind force when ball is moving
+        if (this.windForce !== 0 && this.isMoving) {
+            this.scene.matter.body.applyForce(this.sprite, this.sprite.position, { x: this.windForce, y: 0 });
+        }
+
         // Draw ball visual
         this.graphics.clear();
         this.graphics.fillStyle(0xffffff, 1);
@@ -253,6 +262,10 @@ export class Ball {
             this.sprite.friction = cfg.friction;
             this.sprite.frictionAir = cfg.frictionAir;
         }
+    }
+
+    setWind(force) {
+        this.windForce = force;
     }
 
     setOnIce(onIce) {

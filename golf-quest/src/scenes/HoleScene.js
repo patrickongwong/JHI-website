@@ -5,6 +5,7 @@ import { BackgroundSystem } from '../systems/BackgroundSystem.js';
 import { Player } from '../entities/Player.js';
 import { Ball } from '../entities/Ball.js';
 import { HUD } from '../ui/HUD.js';
+import { MobileControls } from '../ui/MobileControls.js';
 import { Enemy } from '../entities/Enemy.js';
 import { Boss } from '../entities/Boss.js';
 
@@ -79,6 +80,11 @@ export class HoleScene extends Phaser.Scene {
 
         // Create ball at spawn point
         this.ball = new Ball(this, this.ballSpawn.x, this.ballSpawn.y, isPsychic);
+
+        // Set wind from biome config
+        if (biomePhysics.wind !== 0) {
+            this.ball.setWind(biomePhysics.wind);
+        }
 
         // Set up hazard collision events
         this.setupHazardCollisions();
@@ -524,8 +530,9 @@ export class HoleScene extends Phaser.Scene {
         }
 
         const gs = this.registry.get('gameState');
+        const windActive = PhysicsConfig.biomes[this.holeConfig.biome].wind !== 0;
         if (this.hud && this.player) {
-            this.hud.update(this.holeConfig, this.player, gs);
+            this.hud.update(this.holeConfig, this.player, gs, windActive);
         }
     }
 }
