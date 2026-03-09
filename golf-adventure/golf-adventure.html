@@ -1934,11 +1934,11 @@
                 const level = levels[currentHole];
                 const maxTerrainX = level.terrain.reduce((max, t) => Math.max(max, t.x + t.w), 0);
                 const targetZoom = Math.min(1, canvas.width / (maxTerrainX + 100));
-                cameraZoom += (targetZoom - cameraZoom) * 0.06;
-                const idealCam = (maxTerrainX / 2) * cameraZoom - canvas.width * 0.5;
-                cameraX += (idealCam - cameraX) * 0.05;
+                cameraZoom += (targetZoom - cameraZoom) * 0.036;
+                const idealCam = Math.max(0, (maxTerrainX / 2) * cameraZoom - canvas.width * 0.5);
+                cameraX += (idealCam - cameraX) * 0.03;
             } else {
-                cameraZoom += (1 - cameraZoom) * 0.08;
+                cameraZoom += (1 - cameraZoom) * 0.048;
                 const ballMoving = Math.abs(ball.vx) > 2 || Math.abs(ball.vy) > 2;
                 const psychicActive = activeCharacter === 'patrick' && psychicMode;
                 const target = (ballMoving || psychicActive) ? ball.x : player.x;
@@ -2349,6 +2349,26 @@
             ctx.translate(-cameraX, 0);
 
             // --- Draw terrain ---
+            // Extend leftmost terrain segment off-screen to hide the cliff edge
+            const firstTerrain = level.terrain[0];
+            if (firstTerrain && firstTerrain.x === 0) {
+                const startY = baseY + firstTerrain.y;
+                // Draw ground extending left off-screen
+                ctx.fillStyle = theme.earth;
+                ctx.fillRect(-500, startY + 6, 500, H + 20 - startY);
+                ctx.fillStyle = theme.dirt;
+                ctx.fillRect(-500, startY + 6, 500, H + 20 - startY);
+                if (isMobile) {
+                    ctx.fillStyle = theme.grassMid;
+                } else {
+                    const grassGrad = ctx.createLinearGradient(0, startY - 5, 0, startY + 15);
+                    grassGrad.addColorStop(0, theme.grassTop);
+                    grassGrad.addColorStop(0.3, theme.grassMid);
+                    grassGrad.addColorStop(1, theme.grassBot);
+                    ctx.fillStyle = grassGrad;
+                }
+                ctx.fillRect(-500, startY, 500, 12);
+            }
             level.terrain.forEach(t => {
                 const startY = baseY + t.y;
                 const endY = baseY + t.y + t.h;
