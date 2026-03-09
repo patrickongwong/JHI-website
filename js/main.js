@@ -444,8 +444,17 @@ window.addEventListener('scroll', () => {
 
 function handleSubmit(e) {
     e.preventDefault();
-    alert('Thank you for your message. We will be in touch shortly.');
-    e.target.reset();
+    const form = e.target;
+    const name = form.name.value.trim();
+    const email = form.email.value.trim();
+    const subject = form._subject.value.trim();
+    const message = form.message.value.trim();
+
+    const body = `From: ${name} (${email})\n\n${message}`;
+    const mailtoLink = `mailto:jhi@januarius.ph?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+
+    form.reset();
 }
 window.handleSubmit = handleSubmit;
 
