@@ -1,5 +1,6 @@
 import { HoleConfig, SkyConfig } from '../config/HoleConfig.js';
 import { PhysicsConfig } from '../systems/PhysicsConfig.js';
+import { ScoreManager } from '../systems/ScoreManager.js';
 import { Player } from '../entities/Player.js';
 import { Ball } from '../entities/Ball.js';
 import { HUD } from '../ui/HUD.js';
@@ -275,70 +276,112 @@ export class HoleScene extends Phaser.Scene {
         // Calculate score
         const strokes = this.ball.strokes;
         const par = this.holeConfig.par;
-        const scoreDiff = strokes - par;
-        const coinsEarned = Math.max(10, 50 - scoreDiff * 10);
+        const parLabel = ScoreManager.getParLabel(strokes, par);
+        const coinsEarned = Math.max(1, 5 - Math.max(0, strokes - par));
 
         // Save to gameState
         const gs = this.registry.get('gameState') || {};
         if (!gs.scores) gs.scores = [];
-        gs.scores[this.holeNumber - 1] = strokes;
+        gs.scores.push(strokes);
         gs.coins = (gs.coins || 0) + coinsEarned;
         this.registry.set('gameState', gs);
 
-        // Determine score label
-        let label = `${strokes} strokes`;
-        if (scoreDiff === 0) label = 'Par!';
-        else if (scoreDiff === -1) label = 'Birdie!';
-        else if (scoreDiff === -2) label = 'Eagle!';
-        else if (scoreDiff <= -3) label = 'Albatross!';
-        else if (scoreDiff === 1) label = 'Bogey';
-        else if (scoreDiff === 2) label = 'Double Bogey';
-
         // Show completion overlay
-        const cx = this.cameras.main.worldView.centerX;
-        const cy = this.cameras.main.worldView.centerY;
+        const { width, height } = this.cameras.main;
+        const cx = width / 2;
+        const cy = height / 2;
 
-        const overlay = this.add.rectangle(cx, cy, 300, 180, 0x000000, 0.7)
-            .setDepth(300).setOrigin(0.5);
+        // Semi-transparent black overlay covering the full screen
+        const overlay = this.add.rectangle(cx, cy, width, height, 0x000000, 0.6)
+            .setDepth(300).setScrollFactor(0);
 
-        const title = this.add.text(cx, cy - 50, 'Hole Complete!', {
+        // "Hole Complete!" title
+        this.add.text(cx, cy - 80, 'Hole Complete!', {
             fontFamily: 'Georgia, serif',
-            fontSize: '28px',
+            fontSize: '32px',
             color: '#ffd700',
             stroke: '#000',
-            strokeThickness: 3
-        }).setOrigin(0.5).setDepth(301);
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
 
-        const scoreText = this.add.text(cx, cy, label, {
+        // Par performance label
+        this.add.text(cx, cy - 40, parLabel, {
             fontFamily: 'Georgia, serif',
-            fontSize: '22px',
-            color: '#fff',
+            fontSize: '24px',
+            color: '#ffffff',
             stroke: '#000',
             strokeThickness: 2
-        }).setOrigin(0.5).setDepth(301);
+        }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
 
-        const coinText = this.add.text(cx, cy + 35, `+${coinsEarned} coins`, {
+        // Strokes this hole
+        this.add.text(cx, cy - 10, `${strokes} stroke${strokes !== 1 ? 's' : ''} (par ${par})  +${coinsEarned} coins`, {
             fontFamily: 'Georgia, serif',
             fontSize: '18px',
-            color: '#ffd700',
+            color: '#ffffff',
             stroke: '#000',
             strokeThickness: 2
-        }).setOrigin(0.5).setDepth(301);
+        }).setOrigin(0.5).setDepth(301).setScrollFactor(0);
 
-        // Auto-advance after delay
-        this.time.delayedCall(2500, () => {
-            overlay.destroy();
-            title.destroy();
-            scoreText.destroy();
-            coinText.destroy();
+        // Buttons depend on which hole was just completed
+        if (this.holeNumber === 9) {
+            // Final hole — Victory
+            this.createOverlayButton(cx, cy + 50, 'Victory!', () => {
+                this.scene.start('CinematicScene', { type: 'ending' });
+            });
+        } else if (this.holeNumber === 8) {
+            // Hole 8 — Launch to Space
+            this.createOverlayButton(cx, cy + 50, 'Launch to Space!', () => {
+                gs.strokes = 0;
+                this.registry.set('gameState', gs);
+                this.scene.start('CinematicScene', { type: 'space-launch', nextHole: 9 });
+            });
+        } else {
+            // Holes 1-7 — Next Hole + Visit Shop
+            this.createOverlayButton(cx - 110, cy + 50, 'Next Hole', () => {
+                gs.strokes = 0;
+                this.registry.set('gameState', gs);
+                this.scene.start('HoleScene', { hole: this.holeNumber + 1 });
+            });
 
-            const totalHoles = 9;
-            if (this.holeNumber < totalHoles) {
-                this.scene.restart({ hole: this.holeNumber + 1 });
-            } else {
-                this.scene.start('MenuScene');
-            }
+            this.createOverlayButton(cx + 110, cy + 50, 'Visit Shop', () => {
+                gs.strokes = 0;
+                this.registry.set('gameState', gs);
+                this.scene.start('ShopScene', { nextHole: this.holeNumber + 1 });
+            });
+        }
+    }
+
+    createOverlayButton(x, y, label, onClick) {
+        const btnW = 180;
+        const btnH = 44;
+
+        const btnBg = this.add.graphics().setDepth(302).setScrollFactor(0);
+        btnBg.fillStyle(0xc9a84c, 1);
+        btnBg.fillRoundedRect(x - btnW / 2, y - btnH / 2, btnW, btnH, 6);
+
+        const btnText = this.add.text(x, y, label, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '20px',
+            color: '#1a472a'
+        }).setOrigin(0.5).setDepth(303).setScrollFactor(0);
+
+        const hitZone = this.add.zone(x, y, btnW, btnH)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(304).setScrollFactor(0);
+
+        hitZone.on('pointerover', () => {
+            btnBg.clear();
+            btnBg.fillStyle(0xe0c872, 1);
+            btnBg.fillRoundedRect(x - btnW / 2, y - btnH / 2, btnW, btnH, 6);
         });
+
+        hitZone.on('pointerout', () => {
+            btnBg.clear();
+            btnBg.fillStyle(0xc9a84c, 1);
+            btnBg.fillRoundedRect(x - btnW / 2, y - btnH / 2, btnW, btnH, 6);
+        });
+
+        hitZone.on('pointerdown', onClick);
     }
 
     checkOutOfBounds() {
