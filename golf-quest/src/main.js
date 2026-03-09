@@ -1,6 +1,7 @@
 import { BootScene } from './scenes/BootScene.js';
 import { PreloadScene } from './scenes/PreloadScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
+import { HoleScene } from './scenes/HoleScene.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -19,7 +20,7 @@ const config = {
             debug: false
         }
     },
-    scene: [BootScene, PreloadScene, MenuScene]
+    scene: [BootScene, PreloadScene, MenuScene, HoleScene]
 };
 
 const game = new Phaser.Game(config);

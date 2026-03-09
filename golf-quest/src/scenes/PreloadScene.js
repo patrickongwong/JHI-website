@@ -37,9 +37,25 @@ export class PreloadScene extends Phaser.Scene {
         this.load.audio('swing', 'assets/sounds/swing.mp3');
         this.load.audio('applause', 'assets/sounds/applause.wav');
 
-        // TODO: Load sprite sheets (will be added in later tasks)
+        // Tilesets
+        this.load.image('tileset-meadow', 'assets/tilesets/meadow.png');
+        this.load.image('tileset-desert', 'assets/tilesets/desert.png');
+        this.load.image('tileset-tundra', 'assets/tilesets/tundra.png');
+        this.load.image('tileset-space', 'assets/tilesets/space.png');
 
-        // TODO: Load tilemaps (will be added in later tasks)
+        // Tilemaps
+        for (let i = 1; i <= 9; i++) {
+            this.load.tilemapTiledJSON(`hole${i}`, `assets/tilemaps/hole${i}.json`);
+        }
+
+        // Spritesheets
+        this.load.spritesheet('jj', 'assets/sprites/jj.png', { frameWidth: 32, frameHeight: 48 });
+        this.load.spritesheet('patrick', 'assets/sprites/patrick.png', { frameWidth: 32, frameHeight: 48 });
+        this.load.spritesheet('enemy', 'assets/sprites/enemy.png', { frameWidth: 48, frameHeight: 48 });
+        this.load.spritesheet('boss', 'assets/sprites/boss.png', { frameWidth: 128, frameHeight: 128 });
+        this.load.image('ball', 'assets/sprites/ball.png');
+        this.load.image('projectile', 'assets/sprites/projectile.png');
+        this.load.image('asteroid', 'assets/sprites/asteroid.png');
     }
 
     create() {
