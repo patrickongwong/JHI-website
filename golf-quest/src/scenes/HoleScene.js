@@ -5,6 +5,7 @@ import { Player } from '../entities/Player.js';
 import { Ball } from '../entities/Ball.js';
 import { HUD } from '../ui/HUD.js';
 import { Enemy } from '../entities/Enemy.js';
+import { Boss } from '../entities/Boss.js';
 
 export class HoleScene extends Phaser.Scene {
     constructor() {
@@ -108,6 +109,13 @@ export class HoleScene extends Phaser.Scene {
 
         // Set up enemy collision detection (ball-enemy and projectile-player)
         this.setupEnemyCollisions();
+
+        // Spawn boss for hole 9
+        this.boss = null;
+        if (this.holeConfig.hasBoss && this.bossSpawn) {
+            this.boss = new Boss(this, this.bossSpawn.x, this.bossSpawn.y);
+            this.setupBossCollisions();
+        }
 
         // HUD overlay
         this.hud = new HUD(this);
@@ -252,6 +260,23 @@ export class HoleScene extends Phaser.Scene {
                             projGO.destroy();
                         }
                     }
+                }
+            });
+        });
+    }
+
+    setupBossCollisions() {
+        this.matter.world.on('collisionstart', (event) => {
+            event.pairs.forEach(pair => {
+                const labels = [pair.bodyA.label, pair.bodyB.label];
+
+                if (!labels.includes('ball')) return;
+                if (!this.boss || this.boss.dead) return;
+
+                if (labels.includes('bossWeakPoint') && this.boss.weakPointActive) {
+                    this.boss.takeDamage(5, true);
+                } else if (labels.includes('bossBody')) {
+                    this.boss.takeDamage(1, false);
                 }
             });
         });
@@ -480,6 +505,11 @@ export class HoleScene extends Phaser.Scene {
         // Update enemies
         if (this.enemies) {
             this.enemies.forEach(e => e.update(this.player));
+        }
+
+        // Update boss
+        if (this.boss) {
+            this.boss.update(time, this.player, this.ball);
         }
 
         // Check hazard/completion logic
