@@ -5,13 +5,14 @@ import { PhysicsConfig } from '../systems/PhysicsConfig.js';
  * ground detection, animations, health, and equipment-based stats.
  */
 export class Player {
-    constructor(scene, x, y) {
+    constructor(scene, x, y, character = 'jj') {
         this.scene = scene;
+        this.character = character;
 
         const p = PhysicsConfig.player;
 
         // Create Matter.js sprite
-        this.sprite = scene.matter.add.sprite(x, y, 'jj', 0, {
+        this.sprite = scene.matter.add.sprite(x, y, character, 0, {
             shape: { type: 'rectangle', width: p.width, height: p.height },
             fixedRotation: true,
             restitution: 0,
@@ -52,8 +53,13 @@ export class Player {
         // Create animations (only if they don't already exist)
         this.createAnimations();
 
+        // Psychic aura for Patrick
+        if (this.character === 'patrick') {
+            this.createPsychicAura();
+        }
+
         // Start idle
-        this.sprite.play('jj-idle');
+        this.sprite.play(`${this.character}-idle`);
 
         // Ground detection via collision events
         this.setupCollisionDetection();
@@ -62,6 +68,7 @@ export class Player {
     createAnimations() {
         const anims = this.scene.anims;
 
+        // JJ animations
         if (!anims.exists('jj-idle')) {
             anims.create({
                 key: 'jj-idle',
@@ -106,6 +113,80 @@ export class Player {
                 repeat: 0
             });
         }
+
+        // Patrick animations
+        if (!anims.exists('patrick-idle')) {
+            anims.create({
+                key: 'patrick-idle',
+                frames: anims.generateFrameNumbers('patrick', { start: 0, end: 3 }),
+                frameRate: 6,
+                repeat: -1
+            });
+        }
+
+        if (!anims.exists('patrick-walk')) {
+            anims.create({
+                key: 'patrick-walk',
+                frames: anims.generateFrameNumbers('patrick', { start: 4, end: 9 }),
+                frameRate: 10,
+                repeat: -1
+            });
+        }
+
+        if (!anims.exists('patrick-jump')) {
+            anims.create({
+                key: 'patrick-jump',
+                frames: anims.generateFrameNumbers('patrick', { start: 10, end: 11 }),
+                frameRate: 6,
+                repeat: 0
+            });
+        }
+
+        if (!anims.exists('patrick-swing')) {
+            anims.create({
+                key: 'patrick-swing',
+                frames: anims.generateFrameNumbers('patrick', { start: 12, end: 15 }),
+                frameRate: 12,
+                repeat: 0
+            });
+        }
+
+        if (!anims.exists('patrick-hurt')) {
+            anims.create({
+                key: 'patrick-hurt',
+                frames: anims.generateFrameNumbers('patrick', { start: 16, end: 17 }),
+                frameRate: 8,
+                repeat: 0
+            });
+        }
+
+        if (!anims.exists('patrick-psychic')) {
+            anims.create({
+                key: 'patrick-psychic',
+                frames: anims.generateFrameNumbers('patrick', { start: 18, end: 19 }),
+                frameRate: 4,
+                repeat: -1
+            });
+        }
+    }
+
+    createPsychicAura() {
+        // Purple particle emitter attached to sprite for psychic aura
+        this.psychicEmitter = this.scene.add.particles(0, 0, '__DEFAULT', {
+            x: 0,
+            y: 0,
+            follow: this.sprite,
+            speed: { min: 5, max: 15 },
+            angle: { min: 250, max: 290 },
+            scale: { start: 0.4, end: 0 },
+            alpha: { start: 0.6, end: 0 },
+            lifespan: 600,
+            frequency: 80,
+            tint: [0x9b59b6, 0x8e44ad, 0x7d3c98],
+            blendMode: 'ADD',
+            emitting: true
+        });
+        this.psychicEmitter.setDepth(9);
     }
 
     setupCollisionDetection() {
@@ -209,15 +290,16 @@ export class Player {
         const isPlaying = this.sprite.anims.isPlaying;
         const animKey = currentAnim ? currentAnim.key : '';
 
-        if (animKey === 'jj-hurt' && isPlaying) return;
-        if (animKey === 'jj-swing' && isPlaying) return;
+        if (animKey === `${this.character}-hurt` && isPlaying) return;
+        if (animKey === `${this.character}-swing` && isPlaying) return;
+        if (animKey === `${this.character}-psychic` && isPlaying) return;
 
         if (!this.isGrounded) {
-            this.sprite.play('jj-jump', true);
+            this.sprite.play(`${this.character}-jump`, true);
         } else if (moveX !== 0) {
-            this.sprite.play('jj-walk', true);
+            this.sprite.play(`${this.character}-walk`, true);
         } else {
-            this.sprite.play('jj-idle', true);
+            this.sprite.play(`${this.character}-idle`, true);
         }
     }
 
@@ -228,7 +310,7 @@ export class Player {
         if (this.invincible || !this.alive) return;
 
         this.health -= amount;
-        this.sprite.play('jj-hurt');
+        this.sprite.play(`${this.character}-hurt`);
 
         if (this.health <= 0) {
             this.ko();
@@ -256,7 +338,7 @@ export class Player {
     ko() {
         this.alive = false;
         this.sprite.setVelocity(0, 0);
-        this.sprite.play('jj-hurt');
+        this.sprite.play(`${this.character}-hurt`);
 
         // Add stroke penalty
         const strokes = this.scene.registry.get('strokes') || 0;
@@ -291,13 +373,16 @@ export class Player {
      * Play the swing animation (used when hitting the ball).
      */
     swing() {
-        this.sprite.play('jj-swing');
+        this.sprite.play(`${this.character}-swing`);
     }
 
     /**
      * Clean up input and listeners.
      */
     destroy() {
+        if (this.psychicEmitter) {
+            this.psychicEmitter.destroy();
+        }
         if (this.sprite) {
             this.sprite.destroy();
         }

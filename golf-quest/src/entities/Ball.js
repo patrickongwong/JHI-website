@@ -1,8 +1,10 @@
 import { PhysicsConfig } from '../systems/PhysicsConfig.js';
 
 export class Ball {
-    constructor(scene, x, y) {
+    constructor(scene, x, y, psychicMode = false) {
         this.scene = scene;
+        this.psychicMode = psychicMode;
+        this.psychicTarget = null;
         const cfg = PhysicsConfig.ball;
 
         // Create Matter.js circle body
@@ -39,11 +41,47 @@ export class Ball {
 
         // Set up input
         this.setupInput();
+
+        // Psychic mode particle trail
+        if (this.psychicMode) {
+            this.psychicTrail = scene.add.particles(0, 0, '__DEFAULT', {
+                speed: { min: 2, max: 8 },
+                angle: { min: 0, max: 360 },
+                scale: { start: 0.3, end: 0 },
+                alpha: { start: 0.5, end: 0 },
+                lifespan: 400,
+                frequency: 50,
+                tint: [0x9b59b6, 0x8e44ad, 0x7d3c98],
+                blendMode: 'ADD',
+                emitting: false
+            });
+            this.psychicTrail.setDepth(9);
+        }
     }
 
     setupInput() {
         const scene = this.scene;
 
+        if (this.psychicMode) {
+            // Psychic mode: click anywhere to set target
+            scene.input.on('pointerdown', (pointer) => {
+                if (this.isMoving) return;
+                const worldPoint = scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                this.psychicTarget = { x: worldPoint.x, y: worldPoint.y };
+                this.isMoving = true;
+
+                // Count as a stroke
+                this.strokes++;
+
+                // Enable psychic trail
+                if (this.psychicTrail) {
+                    this.psychicTrail.emitting = true;
+                }
+            });
+            return;
+        }
+
+        // Normal slingshot aiming
         scene.input.on('pointerdown', (pointer) => {
             const worldPoint = scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
             const ballPos = this.sprite.position;
@@ -148,10 +186,40 @@ export class Ball {
 
     update() {
         const ballPos = this.sprite.position;
+
+        // Psychic mode movement
+        if (this.psychicMode && this.psychicTarget) {
+            const dx = this.psychicTarget.x - ballPos.x;
+            const dy = this.psychicTarget.y - ballPos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 5) {
+                const speed = 3;
+                this.scene.matter.body.setVelocity(this.sprite, {
+                    x: (dx / dist) * speed,
+                    y: (dy / dist) * speed
+                });
+            } else {
+                this.scene.matter.body.setVelocity(this.sprite, { x: 0, y: 0 });
+                this.isMoving = false;
+                this.psychicTarget = null;
+                // Stop psychic trail
+                if (this.psychicTrail) {
+                    this.psychicTrail.emitting = false;
+                }
+            }
+        }
+
+        // Update psychic trail position
+        if (this.psychicTrail) {
+            this.psychicTrail.setPosition(ballPos.x, ballPos.y);
+        }
+
         const velocity = this.sprite.velocity;
         const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
 
-        this.isMoving = speed > this.movingThreshold;
+        if (!this.psychicMode) {
+            this.isMoving = speed > this.movingThreshold;
+        }
 
         // Draw ball visual
         this.graphics.clear();
@@ -211,6 +279,9 @@ export class Ball {
     destroy() {
         this.graphics.destroy();
         this.trajectoryGraphics.destroy();
+        if (this.psychicTrail) {
+            this.psychicTrail.destroy();
+        }
         this.scene.matter.world.remove(this.sprite);
     }
 }
