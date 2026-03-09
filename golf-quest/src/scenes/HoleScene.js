@@ -4,6 +4,7 @@ import { ScoreManager } from '../systems/ScoreManager.js';
 import { Player } from '../entities/Player.js';
 import { Ball } from '../entities/Ball.js';
 import { HUD } from '../ui/HUD.js';
+import { Enemy } from '../entities/Enemy.js';
 
 export class HoleScene extends Phaser.Scene {
     constructor() {
@@ -76,6 +77,27 @@ export class HoleScene extends Phaser.Scene {
 
         // Set up hazard collision events
         this.setupHazardCollisions();
+
+        // Spawn asteroids for space biome
+        if (config.biome === 'space') {
+            this.asteroids = [];
+            this.asteroidZones.forEach(zone => {
+                const count = 3 + Math.floor(Math.random() * 3); // 3-5
+                for (let i = 0; i < count; i++) {
+                    const x = zone.x + Math.random() * zone.width;
+                    const y = zone.y + Math.random() * zone.height;
+                    const ast = this.matter.add.sprite(x, y, 'asteroid');
+                    ast.setCircle(15);
+                    ast.setStatic(true);
+                    ast.setBounce(0.8);
+                    ast.startX = x;
+                    ast.startY = y;
+                    ast.phase = Math.random() * Math.PI * 2;
+                    ast.amplitude = 30 + Math.random() * 50;
+                    this.asteroids.push(ast);
+                }
+            });
+        }
 
         // HUD overlay
         this.hud = new HUD(this);
@@ -402,6 +424,15 @@ export class HoleScene extends Phaser.Scene {
         if (!this.holeComplete) {
             this.checkHoleCompletion();
             this.checkOutOfBounds();
+        }
+
+        // Drift asteroids sinusoidally
+        if (this.asteroids) {
+            this.asteroids.forEach(ast => {
+                const newX = ast.startX + Math.sin(time * 0.001 + ast.phase) * ast.amplitude;
+                const newY = ast.startY + Math.cos(time * 0.0008 + ast.phase) * ast.amplitude * 0.5;
+                ast.setPosition(newX, newY);
+            });
         }
 
         const gs = this.registry.get('gameState');
