@@ -1,5 +1,6 @@
 import { BootScene } from './scenes/BootScene.js';
 import { PreloadScene } from './scenes/PreloadScene.js';
+import { MenuScene } from './scenes/MenuScene.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -18,7 +19,7 @@ const config = {
             debug: false
         }
     },
-    scene: [BootScene, PreloadScene]
+    scene: [BootScene, PreloadScene, MenuScene]
 };
 
 const game = new Phaser.Game(config);
