@@ -264,6 +264,17 @@ export class Player {
             moveX = this.speed;
         }
 
+        // Check mobile input alongside keyboard
+        if (this.mobileControls && this.mobileControls.isMobile) {
+            const mv = this.mobileControls.getMovement();
+            if (mv.x !== 0) moveX = mv.x * this.speed;
+            if (this.mobileControls.consumeJump() && this.jumpsRemaining > 0) {
+                this.sprite.setVelocityY(this.jumpForce);
+                this.jumpsRemaining--;
+                this.isGrounded = false;
+            }
+        }
+
         // Apply horizontal velocity (preserve vertical from gravity)
         this.sprite.setVelocityX(moveX);
 

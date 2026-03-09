@@ -127,6 +127,10 @@ export class HoleScene extends Phaser.Scene {
             this.setupBossCollisions();
         }
 
+        // Mobile controls
+        this.mobileControls = new MobileControls(this);
+        this.player.mobileControls = this.mobileControls;
+
         // HUD overlay
         this.hud = new HUD(this);
     }

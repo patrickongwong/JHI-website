@@ -11,6 +11,13 @@ const config = {
     height: 600,
     parent: 'game-container',
     pixelArt: true,
+    plugins: {
+        global: [{
+            key: 'rexVirtualJoystick',
+            plugin: rexvirtualjoystickplugin,
+            start: true
+        }]
+    },
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
