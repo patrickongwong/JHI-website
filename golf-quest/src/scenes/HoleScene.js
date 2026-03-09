@@ -180,6 +180,9 @@ export class HoleScene extends Phaser.Scene {
 
         // HUD overlay
         this.hud = new HUD(this);
+
+        // Scene fade-in transition
+        this.cameras.main.fadeIn(500, 0, 0, 0);
     }
 
     createParticleTextures() {
@@ -590,6 +593,24 @@ export class HoleScene extends Phaser.Scene {
         if (!this.holeComplete) {
             this.checkHoleCompletion();
             this.checkOutOfBounds();
+        }
+
+        // Animate water surface waves
+        if (this.waterGraphics && this.waterGraphics.length > 0) {
+            this.waterGraphics.forEach(({ gfx, zone }) => {
+                gfx.clear();
+                gfx.fillStyle(0x1a6ea0, 0.7);
+                gfx.fillRect(zone.x, zone.y + 10, zone.width, zone.height - 10);
+                // Wave top
+                gfx.lineStyle(3, 0x3399cc, 0.8);
+                gfx.beginPath();
+                for (let x = zone.x; x < zone.x + zone.width; x += 4) {
+                    const y = zone.y + Math.sin((x + time * 0.003) * 0.05) * 4;
+                    if (x === zone.x) gfx.moveTo(x, y);
+                    else gfx.lineTo(x, y);
+                }
+                gfx.strokePath();
+            });
         }
 
         // Drift asteroids sinusoidally
