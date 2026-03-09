@@ -323,6 +323,19 @@ export class Player {
         this.health -= amount;
         this.sprite.play(`${this.character}-hurt`);
 
+        // Damage particles
+        if (this.scene.textures.exists('particle-red')) {
+            const emitter = this.scene.add.particles(this.sprite.x, this.sprite.y, 'particle-red', {
+                speed: { min: 20, max: 80 },
+                scale: { start: 1, end: 0 },
+                lifespan: 300,
+                quantity: 10,
+                emitting: false
+            });
+            emitter.explode();
+            this.scene.time.delayedCall(400, () => emitter.destroy());
+        }
+
         if (this.health <= 0) {
             this.ko();
             return;

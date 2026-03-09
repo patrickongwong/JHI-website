@@ -513,6 +513,21 @@ export class Boss {
         this.dead = true;
         this.state = 'dead';
 
+        // Boss death particles — gold + red explosion
+        ['particle-gold', 'particle-red'].forEach(texture => {
+            if (this.scene.textures.exists(texture)) {
+                const emitter = this.scene.add.particles(this.sprite.x, this.sprite.y, texture, {
+                    speed: { min: 50, max: 200 },
+                    scale: { start: 2, end: 0 },
+                    lifespan: 800,
+                    quantity: 30,
+                    emitting: false
+                });
+                emitter.explode();
+                this.scene.time.delayedCall(900, () => emitter.destroy());
+            }
+        });
+
         // Stop any phase 3 tween
         if (this._redTween) {
             this._redTween.stop();

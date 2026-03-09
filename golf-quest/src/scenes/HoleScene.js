@@ -23,6 +23,9 @@ export class HoleScene extends Phaser.Scene {
         const config = this.holeConfig;
         const skyConfig = SkyConfig[config.time];
 
+        // Create reusable particle textures
+        this.createParticleTextures();
+
         // Set gravity for biome
         const biomePhysics = PhysicsConfig.biomes[config.biome];
         this.matter.world.setGravity(0, biomePhysics.gravity);
@@ -65,6 +68,47 @@ export class HoleScene extends Phaser.Scene {
 
         // Create hazard sensor bodies
         this.createHazardSensors();
+
+        // Draw golf hole and flag
+        if (this.holePosition) {
+            const hx = this.holePosition.x;
+            const hy = this.holePosition.y;
+
+            const holeGfx = this.add.graphics();
+            // Dark hole (ellipse on ground)
+            holeGfx.fillStyle(0x111111);
+            holeGfx.fillEllipse(hx, hy, 30, 12);
+            holeGfx.setDepth(1);
+
+            // Flagpole
+            holeGfx.lineStyle(2, 0xcccccc);
+            holeGfx.beginPath();
+            holeGfx.moveTo(hx, hy);
+            holeGfx.lineTo(hx, hy - 60);
+            holeGfx.strokePath();
+
+            // Flag triangle (red)
+            holeGfx.fillStyle(0xff3333);
+            holeGfx.fillTriangle(hx, hy - 60, hx + 20, hy - 52, hx, hy - 44);
+        }
+
+        // Draw water zone visuals
+        this.waterGraphics = [];
+        this.waterZones.forEach(zone => {
+            const waterGfx = this.add.graphics();
+            waterGfx.setDepth(2);
+            waterGfx.fillStyle(0x1a6ea0, 0.7);
+            waterGfx.fillRect(zone.x, zone.y + 10, zone.width, zone.height - 10);
+            this.waterGraphics.push({ gfx: waterGfx, zone: zone });
+        });
+
+        // Draw sand trap visuals
+        this.sandZones.forEach(zone => {
+            const sandGfx = this.add.graphics();
+            sandGfx.fillStyle(0xD4A76A, 0.4);
+            sandGfx.fillRect(zone.x, zone.y, zone.width, zone.height);
+            sandGfx.setDepth(2);
+        });
 
         // Hole completion state
         this.holeComplete = false;
@@ -136,6 +180,27 @@ export class HoleScene extends Phaser.Scene {
 
         // HUD overlay
         this.hud = new HUD(this);
+    }
+
+    createParticleTextures() {
+        const colors = {
+            'particle-white': 0xffffff,
+            'particle-gold': 0xc9a84c,
+            'particle-red': 0xff3333,
+            'particle-green': 0x40916c,
+            'particle-purple': 0x8B00FF,
+            'particle-brown': 0x8B6914
+        };
+
+        for (const [key, color] of Object.entries(colors)) {
+            if (!this.textures.exists(key)) {
+                const g = this.make.graphics({ add: false });
+                g.fillStyle(color);
+                g.fillCircle(4, 4, 4);
+                g.generateTexture(key, 8, 8);
+                g.destroy();
+            }
+        }
     }
 
     parseObjectLayers(map) {

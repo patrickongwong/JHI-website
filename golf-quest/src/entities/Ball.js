@@ -187,6 +187,19 @@ export class Ball {
 
         // Increment strokes
         this.strokes++;
+
+        // Ball hit particles
+        if (this.scene.textures.exists('particle-gold')) {
+            const emitter = this.scene.add.particles(ballPos.x, ballPos.y, 'particle-gold', {
+                speed: { min: 50, max: 150 },
+                scale: { start: 1, end: 0 },
+                lifespan: 400,
+                quantity: 15,
+                emitting: false
+            });
+            emitter.explode();
+            this.scene.time.delayedCall(500, () => emitter.destroy());
+        }
     }
 
     update() {

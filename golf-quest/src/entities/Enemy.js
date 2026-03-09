@@ -279,6 +279,19 @@ export class Enemy {
         this.state = 'dead';
         this.sprite.play('enemy-death');
 
+        // Death particles
+        if (this.scene.textures.exists('particle-brown')) {
+            const emitter = this.scene.add.particles(this.sprite.x, this.sprite.y, 'particle-brown', {
+                speed: { min: 30, max: 100 },
+                scale: { start: 1.5, end: 0 },
+                lifespan: 600,
+                quantity: 20,
+                emitting: false
+            });
+            emitter.explode();
+            this.scene.time.delayedCall(700, () => emitter.destroy());
+        }
+
         // Award 5 coins
         const gs = this.scene.registry.get('gameState') || {};
         gs.coins = (gs.coins || 0) + 5;
