@@ -1,5 +1,7 @@
 import { HoleConfig, SkyConfig } from '../config/HoleConfig.js';
 import { PhysicsConfig } from '../systems/PhysicsConfig.js';
+import { Player } from '../entities/Player.js';
+import { Ball } from '../entities/Ball.js';
 
 export class HoleScene extends Phaser.Scene {
     constructor() {
@@ -54,6 +56,15 @@ export class HoleScene extends Phaser.Scene {
 
         // Store map reference
         this.map = map;
+
+        // Create player at spawn point
+        const gs = this.registry.get('equipment');
+        this.player = new Player(this, this.playerSpawn.x, this.playerSpawn.y);
+        this.player.setEquipment(gs);
+        this.cameras.main.startFollow(this.player.sprite, false, 0.1, 0.1);
+
+        // Create ball at spawn point
+        this.ball = new Ball(this, this.ballSpawn.x, this.ballSpawn.y);
 
         // Temp: hole info text
         this.add.text(16, 16, `Hole ${config.hole} | Par ${config.par} | ${config.biome} | ${config.time}`, {
@@ -126,6 +137,7 @@ export class HoleScene extends Phaser.Scene {
     }
 
     update(time, delta) {
-        // Will be filled in with entity updates in later tasks
+        if (this.player) this.player.update();
+        if (this.ball) this.ball.update();
     }
 }
