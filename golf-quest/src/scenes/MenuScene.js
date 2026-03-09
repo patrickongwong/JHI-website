@@ -68,6 +68,10 @@ export class MenuScene extends Phaser.Scene {
         });
 
         hitZone.on('pointerdown', () => {
+            // Start background music on first interaction (persists across scenes)
+            if (!this.sound.get('bgMusic') || !this.sound.get('bgMusic').isPlaying) {
+                this.sound.play('bgMusic', { loop: true, volume: 0.225 });
+            }
             this.scene.start('HoleScene', { hole: 1 });
         });
 
