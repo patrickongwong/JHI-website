@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JHI Plot Plotter</title>
+    <title>JHI Lot Plotter</title>
     <link rel="icon" type="image/png" href="../assets/wheel.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -371,7 +371,7 @@
 
     <!-- Header -->
     <header>
-        <h1>JHI Plot Plotter</h1>
+        <h1>JHI Lot Plotter</h1>
         <a href="../index.html">&larr; Back to JHI</a>
     </header>
 
@@ -382,14 +382,8 @@
         <div class="panel-left">
             <div class="panel-left-inner">
 
-                <!-- Tab Switcher -->
-                <div class="tab-switcher">
-                    <button class="active" onclick="switchTab('lineByLine')" id="tabLineByLine">Line by Line</button>
-                    <button onclick="switchTab('paste')" id="tabPaste">Paste</button>
-                </div>
-
-                <!-- Tab: Line by Line -->
-                <div class="tab-content active" id="lineByLineTab">
+                <!-- Bearing Input Form -->
+                <div>
                     <div class="bearing-form">
                         <div class="form-group">
                             <label for="dir1">Direction 1</label>
@@ -421,15 +415,6 @@
                             <button class="btn btn-primary" style="width:100%;" onclick="addLine()">Add Line</button>
                         </div>
                     </div>
-                </div>
-
-                <!-- Tab: Paste -->
-                <div class="tab-content" id="pasteTab">
-                    <div class="form-group">
-                        <label for="pasteInput">Technical Description</label>
-                        <textarea id="pasteInput" placeholder="Paste the full technical description here...&#10;&#10;Example:&#10;N. 45 deg. 30 min. E., 25.00 m. to point 2;&#10;S. 12 deg. 15 min. W., 18.75 m. to point 3;"></textarea>
-                    </div>
-                    <button class="btn btn-secondary" style="width:100%; margin-top: 8px;" onclick="parseDescription()">Parse</button>
                 </div>
 
                 <!-- Line List -->
@@ -513,6 +498,17 @@
             drawPlot();
         }
 
+        // ── Move a line up or down ──
+        function moveLine(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= lines.length) return;
+            const temp = lines[index];
+            lines[index] = lines[newIndex];
+            lines[newIndex] = temp;
+            renderLineList();
+            drawPlot();
+        }
+
         // ── Render the editable line list ──
         function renderLineList() {
             const container = document.getElementById('lineList');
@@ -522,9 +518,15 @@
             }
             container.innerHTML = lines.map((l, i) => {
                 const label = `${i + 1}. ${l.dir1} ${l.deg}\u00b0${l.min}' ${l.dir2} \u2014 ${l.dist.toFixed(2)} m`;
+                const upDisabled = i === 0 ? 'opacity:0.3;pointer-events:none;' : '';
+                const downDisabled = i === lines.length - 1 ? 'opacity:0.3;pointer-events:none;' : '';
                 return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee;font-size:0.85rem;">
                     <span>${label}</span>
-                    <button onclick="deleteLine(${i})" style="background:none;border:none;cursor:pointer;font-size:1rem;" title="Delete">\ud83d\uddd1</button>
+                    <span style="display:flex;gap:2px;">
+                        <button onclick="moveLine(${i},-1)" style="background:none;border:none;cursor:pointer;font-size:0.8rem;${upDisabled}" title="Move up">▲</button>
+                        <button onclick="moveLine(${i},1)" style="background:none;border:none;cursor:pointer;font-size:0.8rem;${downDisabled}" title="Move down">▼</button>
+                        <button onclick="deleteLine(${i})" style="background:none;border:none;cursor:pointer;font-size:1rem;" title="Delete">🗑</button>
+                    </span>
                 </div>`;
             }).join('');
         }
