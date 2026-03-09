@@ -3529,8 +3529,17 @@
     "tileheight": 32,
     "tilesets": [
         {
+            "columns": 16,
             "firstgid": 1,
-            "source": "../tilesets/meadow.json"
+            "image": "../tilesets/meadow.png",
+            "imageheight": 64,
+            "imagewidth": 512,
+            "margin": 0,
+            "name": "meadow",
+            "spacing": 0,
+            "tilecount": 32,
+            "tileheight": 32,
+            "tilewidth": 32
         }
     ],
     "tilewidth": 32,
