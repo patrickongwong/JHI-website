@@ -20,6 +20,9 @@ export class Ball {
         this.graphics = scene.add.graphics();
         this.graphics.setDepth(10);
 
+        // Invisible game object that tracks ball position for camera follow
+        this.followTarget = scene.add.zone(x, y, 1, 1);
+
         // Trajectory preview graphics
         this.trajectoryGraphics = scene.add.graphics();
         this.trajectoryGraphics.setDepth(9);
@@ -48,7 +51,7 @@ export class Ball {
 
         // Psychic mode particle trail
         if (this.psychicMode) {
-            this.psychicTrail = scene.add.particles(0, 0, '__DEFAULT', {
+            this.psychicTrail = scene.add.particles(0, 0, 'particle-purple', {
                 speed: { min: 2, max: 8 },
                 angle: { min: 0, max: 360 },
                 scale: { start: 0.3, end: 0 },
@@ -251,10 +254,13 @@ export class Ball {
         this.graphics.lineStyle(1, 0xcccccc, 1);
         this.graphics.strokeCircle(ballPos.x, ballPos.y, this.radius);
 
+        // Update follow target position to match ball body
+        this.followTarget.setPosition(ballPos.x, ballPos.y);
+
         // Camera follow transitions: only switch target on state change
         if (this.isMoving && !this.wasMoving) {
             // Ball just started moving — follow ball
-            this.scene.cameras.main.startFollow(this.sprite, false, 0.08, 0.08);
+            this.scene.cameras.main.startFollow(this.followTarget, false, 0.08, 0.08);
         }
         if (!this.isMoving && this.wasMoving) {
             // Ball just stopped — follow player
@@ -309,6 +315,9 @@ export class Ball {
     destroy() {
         this.graphics.destroy();
         this.trajectoryGraphics.destroy();
+        if (this.followTarget) {
+            this.followTarget.destroy();
+        }
         if (this.psychicTrail) {
             this.psychicTrail.destroy();
         }

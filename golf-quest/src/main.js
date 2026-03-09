@@ -13,11 +13,11 @@ const config = {
     parent: 'game-container',
     pixelArt: true,
     plugins: {
-        global: [{
+        global: typeof window.rexvirtualjoystickplugin !== 'undefined' ? [{
             key: 'rexVirtualJoystick',
-            plugin: rexvirtualjoystickplugin,
+            plugin: window.rexvirtualjoystickplugin,
             start: true
-        }]
+        }] : []
     },
     scale: {
         mode: Phaser.Scale.FIT,

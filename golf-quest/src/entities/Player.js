@@ -172,7 +172,7 @@ export class Player {
 
     createPsychicAura() {
         // Purple particle emitter attached to sprite for psychic aura
-        this.psychicEmitter = this.scene.add.particles(0, 0, '__DEFAULT', {
+        this.psychicEmitter = this.scene.add.particles(0, 0, 'particle-purple', {
             x: 0,
             y: 0,
             follow: this.sprite,

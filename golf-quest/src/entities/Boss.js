@@ -571,11 +571,12 @@ export class Boss {
             ease: 'Back.easeOut'
         });
 
-        // After 3 seconds, let HoleScene handle the transition
+        // Prevent HoleScene's checkHoleCompletion() from also triggering
+        this.scene.holeComplete = true;
+
+        // After 3 seconds, trigger ending cinematic
         this.scene.time.delayedCall(3000, () => {
             victoryText.destroy();
-            // Mark boss defeated — HoleScene can check this.boss.dead
-            // Trigger ending cinematic
             this.scene.scene.start('CinematicScene', { type: 'ending' });
         });
 

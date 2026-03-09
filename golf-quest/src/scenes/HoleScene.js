@@ -646,6 +646,10 @@ export class HoleScene extends Phaser.Scene {
         }
 
         const gs = this.registry.get('gameState');
+        // Keep gameState.strokes in sync with ball.strokes so HUD displays correctly
+        if (gs && this.ball) {
+            gs.strokes = this.ball.strokes;
+        }
         const windActive = PhysicsConfig.biomes[this.holeConfig.biome].wind !== 0;
         if (this.hud && this.player) {
             this.hud.update(this.holeConfig, this.player, gs, windActive);
