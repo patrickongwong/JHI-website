@@ -464,7 +464,7 @@
     <!-- JavaScript -->
     <script>
         // ── State ──
-        const lines = [];
+        let lines = [];
 
         // ── Tab Switching ──
         function switchTab(tab) {
@@ -476,32 +476,292 @@
 
         // ── Add a single bearing line ──
         function addLine() {
-            // TODO: read form values, validate, push to lines[], call renderLineList() and drawPlot()
+            const dir1 = document.getElementById('dir1').value;
+            const deg = parseInt(document.getElementById('degrees').value, 10);
+            const min = parseInt(document.getElementById('minutes').value, 10);
+            const dir2 = document.getElementById('dir2').value;
+            const dist = parseFloat(document.getElementById('distance').value);
+
+            // Validate
+            if (isNaN(deg) || deg < 0 || deg > 90) {
+                alert('Degrees must be between 0 and 90.');
+                return;
+            }
+            if (isNaN(min) || min < 0 || min > 59) {
+                alert('Minutes must be between 0 and 59.');
+                return;
+            }
+            if (isNaN(dist) || dist <= 0) {
+                alert('Distance must be greater than 0.');
+                return;
+            }
+
+            lines.push({ dir1, deg, min, dir2, dist });
+            renderLineList();
+            drawPlot();
+
+            // Clear form
+            document.getElementById('degrees').value = '';
+            document.getElementById('minutes').value = '';
+            document.getElementById('distance').value = '';
+        }
+
+        // ── Delete a line ──
+        function deleteLine(index) {
+            lines.splice(index, 1);
+            renderLineList();
+            drawPlot();
         }
 
         // ── Render the editable line list ──
         function renderLineList() {
-            // TODO: populate #lineList from lines[]
+            const container = document.getElementById('lineList');
+            if (lines.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = lines.map((l, i) => {
+                const label = `${i + 1}. ${l.dir1} ${l.deg}\u00b0${l.min}' ${l.dir2} \u2014 ${l.dist.toFixed(2)} m`;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee;font-size:0.85rem;">
+                    <span>${label}</span>
+                    <button onclick="deleteLine(${i})" style="background:none;border:none;cursor:pointer;font-size:1rem;" title="Delete">\ud83d\uddd1</button>
+                </div>`;
+            }).join('');
+        }
+
+        // ── Bearing to math angle (radians) ──
+        function bearingToAngle(dir1, deg, min, dir2) {
+            const angle = deg + min / 60;
+            let azimuth;
+            if (dir1 === 'N' && dir2 === 'E') azimuth = angle;
+            else if (dir1 === 'N' && dir2 === 'W') azimuth = 360 - angle;
+            else if (dir1 === 'S' && dir2 === 'E') azimuth = 180 - angle;
+            else /* S-W */ azimuth = 180 + angle;
+            return (90 - azimuth) * Math.PI / 180;
+        }
+
+        // ── Compute points from lines ──
+        function computePoints() {
+            const points = [{ x: 0, y: 0 }];
+            for (const l of lines) {
+                const prev = points[points.length - 1];
+                const angle = bearingToAngle(l.dir1, l.deg, l.min, l.dir2);
+                points.push({
+                    x: prev.x + l.dist * Math.cos(angle),
+                    y: prev.y + l.dist * Math.sin(angle)
+                });
+            }
+            return points;
         }
 
         // ── Draw the plot on canvas ──
         function drawPlot() {
-            // TODO: convert bearings to cartesian, draw on #plotCanvas, update closure status
+            const canvas = document.getElementById('plotCanvas');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width;
+            const H = canvas.height;
+
+            // Clear with cream background
+            ctx.fillStyle = '#f5f1e8';
+            ctx.fillRect(0, 0, W, H);
+
+            if (lines.length === 0) {
+                updateClosureStatus(null);
+                return;
+            }
+
+            const points = computePoints();
+            const padding = 60;
+
+            // Bounding box
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (const p of points) {
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.y > maxY) maxY = p.y;
+            }
+
+            const rangeX = maxX - minX || 1;
+            const rangeY = maxY - minY || 1;
+            const scale = Math.min((W - 2 * padding) / rangeX, (H - 2 * padding) / rangeY);
+
+            // Transform: math coords to screen coords (flip Y)
+            function toScreen(p) {
+                return {
+                    x: padding + (p.x - minX) * scale,
+                    y: H - padding - (p.y - minY) * scale
+                };
+            }
+
+            // Draw north arrow (top-right corner)
+            const arrowX = W - 40;
+            const arrowY = 30;
+            ctx.strokeStyle = '#1a472a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY + 30);
+            ctx.lineTo(arrowX, arrowY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(arrowX - 6, arrowY + 10);
+            ctx.lineTo(arrowX, arrowY);
+            ctx.lineTo(arrowX + 6, arrowY + 10);
+            ctx.stroke();
+            ctx.fillStyle = '#1a472a';
+            ctx.font = 'bold 14px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('N', arrowX, arrowY + 46);
+
+            // Draw line segments
+            ctx.strokeStyle = '#2d6a4f';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < lines.length; i++) {
+                const a = toScreen(points[i]);
+                const b = toScreen(points[i + 1]);
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+
+                // Midpoint label
+                const mx = (a.x + b.x) / 2;
+                const my = (a.y + b.y) / 2;
+                const l = lines[i];
+                const bearingText = `${l.dir1} ${l.deg}\u00b0${l.min}' ${l.dir2}`;
+                const distText = `${l.dist.toFixed(2)} m`;
+                ctx.fillStyle = '#333';
+                ctx.font = '10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(bearingText, mx, my - 6);
+                ctx.fillText(distText, mx, my + 6);
+            }
+
+            // Draw points and labels
+            for (let i = 0; i < points.length; i++) {
+                const s = toScreen(points[i]);
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#c9a84c';
+                ctx.fill();
+                ctx.strokeStyle = '#1a472a';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = '#1a472a';
+                ctx.font = 'bold 11px Inter, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`${i + 1}`, s.x + 7, s.y - 7);
+            }
+
+            // Closure
+            if (lines.length >= 2) {
+                const last = points[points.length - 1];
+                const first = points[0];
+                const dx = last.x - first.x;
+                const dy = last.y - first.y;
+                const error = Math.sqrt(dx * dx + dy * dy);
+
+                const sLast = toScreen(last);
+                const sFirst = toScreen(first);
+
+                if (error < 0.10) {
+                    // Closed — solid line
+                    ctx.strokeStyle = '#2d6a4f';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.moveTo(sLast.x, sLast.y);
+                    ctx.lineTo(sFirst.x, sFirst.y);
+                    ctx.stroke();
+                } else {
+                    // Open — dashed red line
+                    ctx.strokeStyle = '#c0392b';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([6, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(sLast.x, sLast.y);
+                    ctx.lineTo(sFirst.x, sFirst.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                updateClosureStatus(error);
+            } else {
+                updateClosureStatus(null);
+            }
+        }
+
+        // ── Update closure status bar ──
+        function updateClosureStatus(error) {
+            const dot = document.querySelector('.closure-bar .status-dot');
+            const label = document.getElementById('closureStatus');
+
+            if (error === null) {
+                dot.className = 'status-dot';
+                dot.style.background = '#999';
+                label.textContent = lines.length < 2 ? 'Add at least 2 lines' : 'No lines plotted';
+                return;
+            }
+
+            if (error < 0.10) {
+                dot.className = 'status-dot closed';
+                dot.style.background = '';
+                label.textContent = `Plot CLOSED \u2014 Error: ${error.toFixed(2)} m`;
+            } else if (error < 1.0) {
+                dot.className = 'status-dot';
+                dot.style.background = '#f1c40f';
+                label.textContent = `Nearly closed \u2014 Error: ${error.toFixed(2)} m`;
+            } else {
+                dot.className = 'status-dot open';
+                dot.style.background = '';
+                label.textContent = `Plot OPEN \u2014 Error: ${error.toFixed(2)} m`;
+            }
         }
 
         // ── Parse pasted technical description ──
         function parseDescription() {
-            // TODO: parse textarea content into lines[], call renderLineList() and drawPlot()
+            const text = document.getElementById('pasteInput').value;
+            const pattern = /([NS])\.?\s*(\d+)\s*(?:deg\.?|\u00b0)\s*(\d+)\s*(?:min\.?|['\u2032])\s*([EW])\.?\s*[,.]?\s*(\d+\.?\d*)\s*(?:m\.?|meters?)/gi;
+            let match;
+            let count = 0;
+            while ((match = pattern.exec(text)) !== null) {
+                lines.push({
+                    dir1: match[1].toUpperCase(),
+                    deg: parseInt(match[2], 10),
+                    min: parseInt(match[3], 10),
+                    dir2: match[4].toUpperCase(),
+                    dist: parseFloat(match[5])
+                });
+                count++;
+            }
+            if (count === 0) {
+                alert('No lines found. Check the format and try again.');
+                return;
+            }
+            alert(`Parsed ${count} line(s).`);
+            renderLineList();
+            drawPlot();
         }
 
         // ── Download canvas as PNG ──
         function downloadPNG() {
-            // TODO: export #plotCanvas to downloadable PNG
+            const canvas = document.getElementById('plotCanvas');
+            const link = document.createElement('a');
+            link.download = 'plot.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
         }
 
         // ── Clear all lines and reset ──
         function clearAll() {
-            // TODO: empty lines[], clear lineList, clear canvas, reset closure status
+            lines = [];
+            renderLineList();
+            const canvas = document.getElementById('plotCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#f5f1e8';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            updateClosureStatus(null);
         }
 
         // ── Canvas Resize Handler ──
