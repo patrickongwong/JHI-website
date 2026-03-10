@@ -41,6 +41,7 @@ body {
 
 /* ==================== GOLF CLUB ==================== */
 .golf-club {
+    display: none; /* Toggled off */
     position: fixed;
     z-index: 9998;
     pointer-events: none;
@@ -72,6 +73,7 @@ body {
 
 /* ==================== GOLF BALL ==================== */
 .golf-ball {
+    display: none; /* Toggled off */
     position: fixed;
     left: 0;
     top: 0;
@@ -297,6 +299,7 @@ body {
 
 /* Trail Canvas */
 #trailCanvas {
+    display: none; /* Toggled off */
     position: fixed;
     top: 0;
     left: 0;
