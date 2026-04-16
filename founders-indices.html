@@ -146,10 +146,12 @@ h3{
   letter-spacing:.01em;
 }
 h4{
-  font-family:'Outfit',sans-serif;
-  font-size:.82rem;font-weight:500;
-  color:var(--text-2);
-  margin:1rem 0 .2rem;
+  font-family:'Crimson Pro',Georgia,serif;
+  font-size:1.05rem;font-weight:500;
+  color:var(--text);
+  margin:1.25rem 0 .35rem;
+  padding-top:.5rem;
+  border-top:1px solid var(--rule-light);
 }
 
 .intro{
@@ -201,6 +203,75 @@ blockquote{
 blockquote p{margin-bottom:.25em}
 
 .cross-ep{margin-top:2rem}
+
+/* ── Hero / Introduction ── */
+.hero{
+  margin-bottom:3rem;
+  padding-bottom:3rem;
+  border-bottom:1px solid var(--rule);
+}
+.hero h1{
+  font-size:2.5rem;
+  font-weight:300;
+  letter-spacing:-.02em;
+  margin-bottom:.35rem;
+}
+.hero-sub{
+  font-family:'Outfit',sans-serif;
+  font-size:14px;
+  color:var(--accent);
+  font-weight:500;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  margin-bottom:1.5rem;
+}
+.hero-body{
+  max-width:var(--max-w);
+  margin-bottom:2rem;
+}
+.hero-body p{
+  margin-bottom:.75em;
+  color:var(--text-2);
+  font-size:17px;
+  line-height:1.7;
+}
+.hero-toc{
+  background:var(--rule-light);
+  border-radius:8px;
+  padding:1.25rem 1.5rem;
+}
+.hero-toc h2{
+  font-family:'Outfit',sans-serif;
+  font-size:13px;font-weight:600;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--text-2);
+  border-bottom:none;
+  margin:0 0 .75rem;
+  padding:0;
+}
+.hero-toc ol{
+  columns:2;column-gap:2rem;
+  padding-left:1.5rem;
+  margin:0;
+}
+.hero-toc li{
+  margin-bottom:.2rem;
+  font-family:'Outfit',sans-serif;
+  font-size:13px;
+  color:var(--text-3);
+}
+.hero-toc a{
+  color:var(--text-2);
+  text-decoration:none;
+  transition:color .12s;
+}
+.hero-toc a:hover{color:var(--accent)}
+
+@media(max-width:900px){
+  .hero-toc ol{columns:1}
+  .hero h1{font-size:1.8rem}
+}
 
 /* ── Progress ── */
 .progress{
@@ -279,6 +350,58 @@ blockquote p{margin-bottom:.25em}
 </nav>
 
 <main>
+
+<header class="hero">
+  <h1>Founders Indices</h1>
+  <p class="hero-sub">Cross-Cutting Patterns from the Founders Podcast</p>
+  <div class="hero-body">
+    <p>David Senra has spent over a decade reading biographies of history's greatest entrepreneurs — more than 400 episodes, covering founders from Rockefeller to Musk, from Estée Lauder to Jiro Ono. Along the way, the same patterns keep appearing: obsession, contrarian thinking, adversity as fuel, the mentor chain, the dark side of genius.</p>
+    <p>This document maps <strong>36 cross-cutting patterns</strong> found across the entire canon. Each pattern is illustrated with the actual concepts, anecdotes, personality traits, and quotes from the biographies — organized by founder so you can see how the same principle manifests differently in different lives.</p>
+    <p>It is not a summary of any single episode. It is the index that connects them all.</p>
+  </div>
+  <nav class="hero-toc">
+    <h2>The 36 Patterns</h2>
+    <ol>
+      <li><a href="#ch-obsession-as-method">Obsession as Method</a></li>
+      <li><a href="#ch-thinking-for-yourself">Thinking for Yourself</a></li>
+      <li><a href="#ch-adversity-as-fuel">Adversity as Fuel</a></li>
+      <li><a href="#ch-learning-from-the-eminent-dead">Learning from the Eminent Dead</a></li>
+      <li><a href="#ch-cost-control-and-frugality">Cost Control and Frugality</a></li>
+      <li><a href="#ch-the-founder-as-salesman">The Founder as Salesman</a></li>
+      <li><a href="#ch-the-owner-operator-advantage">The Owner-Operator Advantage</a></li>
+      <li><a href="#ch-the-founders-dark-side">The Founder&#x27;s Dark Side</a></li>
+      <li><a href="#ch-building-culture">Building Culture</a></li>
+      <li><a href="#ch-compounding-and-flywheel-effects">Compounding and Flywheel Effects</a></li>
+      <li><a href="#ch-monopoly-thinking-and-moat-building">Monopoly Thinking and Moat Building</a></li>
+      <li><a href="#ch-taste-and-craftsmanship">Taste and Craftsmanship</a></li>
+      <li><a href="#ch-dynasty-building">Dynasty Building</a></li>
+      <li><a href="#ch-customer-obsession-as-operating-system">Customer Obsession as Operating System</a></li>
+      <li><a href="#ch-the-pivot-and-reinvention">The Pivot and Reinvention</a></li>
+      <li><a href="#ch-the-complementary-partnership">The Complementary Partnership</a></li>
+      <li><a href="#ch-negotiation-and-deal-making">Negotiation and Deal-Making</a></li>
+      <li><a href="#ch-leverage-and-financial-engineering">Leverage and Financial Engineering</a></li>
+      <li><a href="#ch-information-advantage">Information Advantage</a></li>
+      <li><a href="#ch-brand-building">Brand Building</a></li>
+      <li><a href="#ch-pricing-strategy">Pricing Strategy</a></li>
+      <li><a href="#ch-the-late-bloomer">The Late Bloomer</a></li>
+      <li><a href="#ch-distribution-bypassing-gatekeepers">Distribution — Bypassing Gatekeepers</a></li>
+      <li><a href="#ch-paranoia-as-strategy">Paranoia as Strategy</a></li>
+      <li><a href="#ch-the-mentor-chain">The Mentor Chain</a></li>
+      <li><a href="#ch-autonomy-as-primary-goal">Autonomy as Primary Goal</a></li>
+      <li><a href="#ch-constraints-as-creative-fuel">Constraints as Creative Fuel</a></li>
+      <li><a href="#ch-the-fathers-shadow">The Father&#x27;s Shadow</a></li>
+      <li><a href="#ch-courage-and-risk-taking">Courage and Risk-Taking</a></li>
+      <li><a href="#ch-self-confidence-as-load-bearing-wall">Self-Confidence as Load-Bearing Wall</a></li>
+      <li><a href="#ch-work-life-balance-the-complete-life">Work-Life Balance — The Complete Life</a></li>
+      <li><a href="#ch-physical-fitness-as-cognitive-infrastructure">Physical Fitness as Cognitive Infrastructure</a></li>
+      <li><a href="#ch-geographic-expansion-strategy">Geographic Expansion Strategy</a></li>
+      <li><a href="#ch-technology-as-weapon">Technology as Weapon</a></li>
+      <li><a href="#ch-speed-as-the-controlling-variable">Speed as the Controlling Variable</a></li>
+      <li><a href="#ch-luck-timing-and-the-right-moment">Luck, Timing, and the Right Moment</a></li>
+    </ol>
+  </nav>
+</header>
+
 <article class="chapter" id="ch-obsession-as-method">
 <div class="ch-num">1</div>
 <h1>Obsession as Method</h1>
