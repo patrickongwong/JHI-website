@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PH Infra Project",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "name", "type", "status", "implementing_agency", "funding_modality", "region", "provinces", "estimated_completion", "completion_confidence", "geometry", "sources", "last_updated"],
+    "properties": {
+      "id": {"type": "string"},
+      "name": {"type": "string"},
+      "type": {"enum": ["road", "bridge", "expressway", "rail", "airport", "seaport"]},
+      "status": {"enum": ["approved", "under_construction", "partially_operational"]},
+      "implementing_agency": {"type": "string"},
+      "concessionaire": {"type": ["string", "null"]},
+      "funding_modality": {"enum": ["ODA", "GAA", "PPP", "Hybrid"]},
+      "region": {"type": "string"},
+      "provinces": {"type": "array", "items": {"type": "string"}},
+      "estimated_completion": {"type": "string", "format": "date"},
+      "completion_confidence": {"enum": ["official_target", "analyst_estimate", "delayed_likely"]},
+      "cost_php_billions": {"type": ["number", "null"]},
+      "geometry": {
+        "type": "object",
+        "required": ["type", "coordinates"],
+        "properties": {
+          "type": {"enum": ["LineString", "MultiLineString", "Point"]},
+          "coordinates": {}
+        }
+      },
+      "description": {"type": "string"},
+      "sources": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["label", "url"],
+          "properties": {
+            "label": {"type": "string"},
+            "url": {"type": "string", "format": "uri"}
+          }
+        }
+      },
+      "last_updated": {"type": "string", "format": "date"}
+    }
+  }
+}
