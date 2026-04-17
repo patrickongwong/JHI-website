@@ -97,6 +97,13 @@ function renderProject(project) {
 
   layer._project = project;
   layer._bucket = bucket;
+
+  layer.on("click", (ev) => {
+    L.DomEvent.stopPropagation(ev);
+    highlight(layer);
+    renderDetail(project, bucket);
+  });
+
   projectLayer.addLayer(layer);
   layerByProjectId.set(project.id, layer);
   return layer;
@@ -114,3 +121,93 @@ async function loadProjects() {
 }
 
 loadProjects();
+
+const detailPanel = document.getElementById("detail-panel");
+const detailContent = document.getElementById("detail-content");
+const detailClose = document.getElementById("detail-close");
+
+const STATUS_LABELS = {
+  approved: "Approved",
+  under_construction: "Under Construction",
+  partially_operational: "Partially Operational",
+};
+
+const BUCKET_LABELS = {
+  green: "≤ 1 year",
+  amber: "1–3 years",
+  blue: "3+ years",
+};
+
+const TYPE_LABELS = {
+  road: "Road",
+  bridge: "Bridge",
+  expressway: "Expressway",
+  rail: "Rail",
+  airport: "Airport",
+  seaport: "Seaport",
+};
+
+function fmtCost(billions) {
+  if (billions == null) return "—";
+  return `₱${billions.toLocaleString("en-PH", { maximumFractionDigits: 1 })}B`;
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-PH", { year: "numeric", month: "long" });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+}
+
+function renderDetail(project, bucket) {
+  detailContent.innerHTML = `
+    <h2>${escapeHtml(project.name)}</h2>
+    <div class="badges">
+      <span class="badge">${escapeHtml(STATUS_LABELS[project.status] || project.status)}</span>
+      <span class="badge bucket-${bucket}">${BUCKET_LABELS[bucket]}</span>
+      <span class="badge">${escapeHtml(TYPE_LABELS[project.type] || project.type)}</span>
+      <span class="badge">${escapeHtml(project.funding_modality)}</span>
+    </div>
+    <dl>
+      <dt>Implementing agency</dt><dd>${escapeHtml(project.implementing_agency)}</dd>
+      ${project.concessionaire ? `<dt>Concessionaire</dt><dd>${escapeHtml(project.concessionaire)}</dd>` : ""}
+      <dt>Region</dt><dd>${escapeHtml(project.region)}</dd>
+      <dt>Provinces</dt><dd>${escapeHtml(project.provinces.join(", "))}</dd>
+      <dt>Target completion</dt><dd>${fmtDate(project.estimated_completion)} <small>(${escapeHtml(project.completion_confidence.replace(/_/g, " "))})</small></dd>
+      <dt>Cost</dt><dd>${fmtCost(project.cost_php_billions)}</dd>
+    </dl>
+    <p class="description">${escapeHtml(project.description)}</p>
+    <h3>Sources</h3>
+    <ul class="sources">
+      ${project.sources.map(s => `<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.label)}</a></li>`).join("")}
+    </ul>
+    <p class="updated">Last updated ${escapeHtml(project.last_updated)}</p>
+  `;
+  detailPanel.classList.remove("hidden");
+}
+
+let highlightedLayer = null;
+
+function highlight(layer) {
+  if (highlightedLayer && highlightedLayer.setStyle) {
+    highlightedLayer.setStyle({ weight: 4 });
+  }
+  if (layer.setStyle) layer.setStyle({ weight: 8 });
+  highlightedLayer = layer;
+}
+
+function clearHighlight() {
+  if (highlightedLayer && highlightedLayer.setStyle) {
+    highlightedLayer.setStyle({ weight: 4 });
+  }
+  highlightedLayer = null;
+}
+
+detailClose.addEventListener("click", () => {
+  detailPanel.classList.add("hidden");
+  clearHighlight();
+});
