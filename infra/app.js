@@ -95,8 +95,8 @@ function renderProject(project) {
     if (layer.setStyle) layer.setStyle({ weight: 4 });
   });
 
-  layer._project = project;
-  layer._bucket = bucket;
+  layer.__projectMeta = project;
+  layer.__bucketKey = bucket;
 
   layer.on("click", (ev) => {
     L.DomEvent.stopPropagation(ev);
@@ -227,7 +227,7 @@ const FILTER_DEFS = [
   { key: "status",              label: "Status" },
 ];
 
-const BUCKET_FILTER = { key: "_bucket", label: "Completion horizon",
+const BUCKET_FILTER = { key: "__bucketKey", label: "Completion horizon",
   options: [
     { value: "green", label: "≤ 1 year",  swatch: COLORS.green },
     { value: "amber", label: "1–3 years", swatch: COLORS.amber },
@@ -297,8 +297,8 @@ function onFilterChange(ev) {
 
 function projectMatches(project, layer) {
   for (const [key, allowed] of Object.entries(activeFilters)) {
-    if (key === "_bucket") {
-      if (!allowed.has(layer._bucket)) return false;
+    if (key === "__bucketKey") {
+      if (!allowed.has(layer.__bucketKey)) return false;
     } else if (key === "provinces") {
       if (!project.provinces.some((p) => allowed.has(p))) return false;
     } else {
