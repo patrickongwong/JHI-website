@@ -1,1 +1,936 @@
-[]
+[
+  {
+    "id": "seed-01",
+    "name": "Metro Manila Subway Project (MMSP) Phase 1",
+    "type": "rail",
+    "status": "under_construction",
+    "implementing_agency": "DOTr",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "NCR",
+    "provinces": ["Metro Manila"],
+    "estimated_completion": "2029-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 488.5,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [120.983, 14.730],
+        [121.028, 14.690],
+        [121.032, 14.677],
+        [121.036, 14.655],
+        [121.038, 14.645],
+        [121.052, 14.641],
+        [121.065, 14.627],
+        [121.070, 14.614],
+        [121.064, 14.588],
+        [121.061, 14.575],
+        [121.056, 14.558],
+        [121.051, 14.540],
+        [121.048, 14.525],
+        [121.035, 14.511],
+        [121.019, 14.496]
+      ]
+    },
+    "description": "A 33.1-km underground rapid transit line with 17 stations running from East Valenzuela (Depot) in the north through Quezon City, Ortigas, and Bonifacio Global City to FTI/Bicutan in Taguig in the south. The project is approximately 54% complete as of early 2026, funded by JICA ODA loans, and is the Philippines' first subway system.",
+    "sources": [
+      {"label": "BusinessMirror – 54% complete, Feb 2026", "url": "https://businessmirror.com.ph/2026/02/13/japan-funded-metro-manila-subway-moves-ahead-of-sked-54-complete/"},
+      {"label": "JICA – Additional financing press release", "url": "https://www.jica.go.jp/english/overseas/philippine/information/press/2025/LAMMSPCMH.html"},
+      {"label": "Metro Manila Subway – Wikipedia", "url": "https://en.wikipedia.org/wiki/Metro_Manila_Subway"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-02",
+    "name": "North–South Commuter Railway (NSCR)",
+    "type": "rail",
+    "status": "under_construction",
+    "implementing_agency": "DOTr",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "NCR",
+    "provinces": ["Metro Manila", "Bulacan", "Pampanga", "Tarlac", "Laguna"],
+    "estimated_completion": "2028-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 873.6,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [120.548, 15.478],
+        [120.658, 15.241],
+        [120.761, 15.129],
+        [120.820, 14.963],
+        [120.857, 14.894],
+        [120.890, 14.844],
+        [120.959, 14.814],
+        [120.988, 14.799],
+        [120.997, 14.776],
+        [121.000, 14.749],
+        [120.998, 14.714],
+        [120.990, 14.673],
+        [120.983, 14.647],
+        [120.984, 14.617],
+        [120.982, 14.596],
+        [120.985, 14.571],
+        [120.987, 14.537],
+        [121.010, 14.470],
+        [121.033, 14.413],
+        [121.058, 14.300],
+        [121.085, 14.213]
+      ]
+    },
+    "description": "A 147-km elevated/at-grade/depressed commuter rail system with 37 stations running from New Clark City in Capas, Tarlac south through Pampanga, Bulacan, Metro Manila (Tutuban), and down to Calamba, Laguna. Funded primarily by JICA and ADB ODA loans, it is roughly 50% complete with the Manila–Malolos segment targeting partial launch by late 2026 or early 2027.",
+    "sources": [
+      {"label": "Inquirer – DOTr eyes 2026 partial completion", "url": "https://newsinfo.inquirer.net/2122240/dotr-secures-right-of-way-for-nscr-sites-eyes-2026-partial-completion"},
+      {"label": "BusinessWorld – up to four-year delay seen, Apr 2025", "url": "https://www.bworldonline.com/economy/2025/04/10/665363/up-to-four-year-delay-seen-for-north-south-rail-project/"},
+      {"label": "NSCR official project website", "url": "https://nscr.com.ph/about"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-03",
+    "name": "MRT Line 7",
+    "type": "rail",
+    "status": "under_construction",
+    "implementing_agency": "DOTr",
+    "concessionaire": "SMC Mass Rail Transit 7, Inc. (San Miguel Corporation)",
+    "funding_modality": "PPP",
+    "region": "NCR",
+    "provinces": ["Metro Manila", "Bulacan"],
+    "estimated_completion": "2028-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 77.0,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [121.036, 14.652],
+        [121.037, 14.651],
+        [121.041, 14.648],
+        [121.053, 14.650],
+        [121.058, 14.657],
+        [121.070, 14.661],
+        [121.078, 14.671],
+        [121.089, 14.678],
+        [121.089, 14.691],
+        [121.073, 14.697],
+        [121.057, 14.704],
+        [121.048, 14.710],
+        [121.039, 14.725],
+        [121.028, 14.760]
+      ]
+    },
+    "description": "A 22.8-km elevated light rail transit line with 14 stations running from North Avenue station in Quezon City (interchange with MRT-3 and the Metro Manila Subway) along Commonwealth Avenue and Quirino Highway up to San Jose del Monte in Bulacan. It is a PPP project under San Miguel Corporation; 12 Quezon City stations are expected to open in 2025–2026, with the Tala and San Jose del Monte stations to follow by 2027–2028.",
+    "sources": [
+      {"label": "PPP Center – MRT-7 to open 12 stations by Q4 2025", "url": "https://ppp.gov.ph/in_the_news/mrt-7-to-open-12-stations-by-4th-quarter-2025/"},
+      {"label": "GMA News – MRT-7 trains running by 2025, full ops by 2026", "url": "https://www.gmanetwork.com/news/money/companies/943569/mrt7-trains-running-by-2025-full-ops-by-2026-smc/story/"},
+      {"label": "MRT Line 7 – Wikipedia", "url": "https://en.wikipedia.org/wiki/MRT_Line_7_(Metro_Manila)"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-04",
+    "name": "LRT-1 Cavite Extension",
+    "type": "rail",
+    "status": "partially_operational",
+    "implementing_agency": "LRTA",
+    "concessionaire": "Light Rail Manila Corporation (LRMC)",
+    "funding_modality": "Hybrid",
+    "region": "NCR",
+    "provinces": ["Metro Manila", "Cavite"],
+    "estimated_completion": "2031-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 64.9,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [120.982, 14.539],
+        [120.990, 14.527],
+        [120.997, 14.518],
+        [121.001, 14.508],
+        [121.005, 14.499],
+        [121.008, 14.488],
+        [121.014, 14.478],
+        [121.019, 14.464],
+        [121.026, 14.449],
+        [121.032, 14.437],
+        [121.038, 14.422],
+        [121.045, 14.407],
+        [121.050, 14.393]
+      ]
+    },
+    "description": "An approximately 14-km southward extension of LRT Line 1 from Baclaran in Pasay to Niog/Bacoor in Cavite, adding 11 new stations in three phases. Phase 1 (5 stations in Parañaque including Redemptorist-ASEANA, PITX, MIA Road, Ninoy Aquino Avenue, and Dr. Santos) was inaugurated on November 15, 2024 and is now operational; Phases 2 and 3 construction are set to resume in 2026 targeting full completion by 2031.",
+    "sources": [
+      {"label": "PCO – PBBM inaugurates LRT-1 Cavite Extension Phase 1", "url": "https://pco.gov.ph/news_releases/modernizing-phs-transit-system-pbbm-inaugurates-lrt-1-cavite-extension-phase-1/"},
+      {"label": "LRMC – LRT-1 Cavite Extension project page", "url": "https://lrmc.ph/lrt-1-cavite-extension-project/"},
+      {"label": "Inquirer – LRT-1 extension to Cavite operational by 2031", "url": "https://business.inquirer.net/474343/lrt-1-extension-to-cavite-operational-by-2031"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-05",
+    "name": "MRT Line 4",
+    "type": "rail",
+    "status": "approved",
+    "implementing_agency": "DOTr",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "NCR",
+    "provinces": ["Metro Manila", "Rizal"],
+    "estimated_completion": "2031-12-31",
+    "completion_confidence": "analyst_estimate",
+    "cost_php_billions": 100.0,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [121.056, 14.597],
+        [121.060, 14.598],
+        [121.069, 14.598],
+        [121.079, 14.594],
+        [121.089, 14.591],
+        [121.103, 14.589],
+        [121.116, 14.587],
+        [121.128, 14.579],
+        [121.137, 14.572],
+        [121.148, 14.566]
+      ]
+    },
+    "description": "A 15.6-km elevated railway with 10 stations running from Ortigas Center (EDSA junction) in Pasig/Quezon City along Ortigas Avenue Extension east to Taytay in Rizal. Originally conceived as a monorail, the design was revised to conventional rail in 2022. The project received NEDA-ICC approval in December 2019, a US$1 billion ADB loan was signed in November 2024, and construction is targeted to begin in 2026 with full operations by 2031.",
+    "sources": [
+      {"label": "PNA – DOTr gets NEDA-ICC nod for MRT-4", "url": "https://www.pna.gov.ph/articles/1089786"},
+      {"label": "ADB – Manila MRT Line 4 Project (53172-001)", "url": "https://www.adb.org/projects/53172-001/main"},
+      {"label": "Philstar – MRT-4 funding may double to P100 billion", "url": "https://www.philstar.com/business/2025/05/26/2445732/mrt-4-funding-may-double-p100-billion"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-06",
+    "name": "NLEX–SLEX Connector Road",
+    "type": "expressway",
+    "status": "under_construction",
+    "implementing_agency": "DPWH",
+    "concessionaire": "NLEX Corporation (MPTC)",
+    "funding_modality": "PPP",
+    "region": "NCR",
+    "provinces": ["Metro Manila"],
+    "estimated_completion": "2026-06-30",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 23.2,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [120.9829, 14.6648],
+        [120.9835, 14.6590],
+        [120.9841, 14.6530],
+        [120.9848, 14.6472],
+        [120.9852, 14.6420],
+        [120.9858, 14.6368],
+        [120.9862, 14.6318],
+        [120.9868, 14.6270],
+        [120.9872, 14.6220],
+        [120.9876, 14.6170],
+        [120.9880, 14.6125],
+        [120.9885, 14.6080]
+      ]
+    },
+    "description": "An 8-kilometer all-elevated four-lane expressway traversing the Philippine National Railways right-of-way from C3 Road in Caloocan southward to Sta. Mesa, Manila, connecting NLEX to Skyway Stage 3. Sections 1 (Caloocan–España) and part of Section 2 (España–Magsaysay) are open; the final 0.75-km Magsaysay–Sta. Mesa segment remains under construction.",
+    "sources": [
+      {"label": "DPWH PPP Project Page – NLEX-SLEX Connector", "url": "https://www.dpwh.gov.ph/dpwh/PPP/projs/NLEX-SLEX"},
+      {"label": "PPP Center – NLEX-SLEX Connector Road", "url": "https://ppp.gov.ph/ppp_projects/nlex-slex-connector-road/"},
+      {"label": "Bilyonaryo – MAP urges swift completion, April 2025", "url": "https://bilyonaryo.com/2025/04/22/roadblock-to-progress-map-urges-swift-completion-of-nlex-slex-connector/infrastructure/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-07",
+    "name": "Cavite–Laguna Expressway (CALAX)",
+    "type": "expressway",
+    "status": "partially_operational",
+    "implementing_agency": "DPWH",
+    "concessionaire": "MPCALA Holdings Inc. (MPTC)",
+    "funding_modality": "PPP",
+    "region": "Region IV-A",
+    "provinces": ["Cavite", "Laguna"],
+    "estimated_completion": "2026-06-30",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 35.7,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [120.8970, 14.4395],
+        [120.9050, 14.4280],
+        [120.9150, 14.4150],
+        [120.9250, 14.4020],
+        [120.9350, 14.3890],
+        [120.9470, 14.3760],
+        [120.9580, 14.3640],
+        [120.9680, 14.3520],
+        [120.9800, 14.3400],
+        [120.9900, 14.3280],
+        [121.0020, 14.3160],
+        [121.0150, 14.3060],
+        [121.0280, 14.2980],
+        [121.0420, 14.2900],
+        [121.0560, 14.2840]
+      ]
+    },
+    "description": "A 44.58-kilometer four-lane closed-system tollway connecting CAVITEX in Kawit, Cavite to SLEX at Mamplasan, Biñan, Laguna, traversing Imus, Dasmariñas, General Trias, Silang in Cavite and Sta. Rosa, Biñan in Laguna. Five interchanges are open (Laguna Technopark, Laguna Boulevard, Sta. Rosa-Tagaytay Road, Silang East, Aguinaldo); the Governor's Drive interchange and Kawit-end connection remain pending full completion.",
+    "sources": [
+      {"label": "PhilStar – CALAX completion delayed to H1 2026", "url": "https://www.philstar.com/business/2025/09/11/2471874/calax-completion-delayed-h1-2026"},
+      {"label": "BusinessWorld – MPTC targets 2026 CALAX completion", "url": "https://www.bworldonline.com/corporate/2025/09/11/697646/mptc-targets-2026-calax-completion-with-new-contractors-on-board/"},
+      {"label": "DPWH PPP – CALAX Project", "url": "https://www.dpwh.gov.ph/dpwh/PPP/projs/cala"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-08",
+    "name": "Cavite–Batangas Expressway (CBEX)",
+    "type": "expressway",
+    "status": "approved",
+    "implementing_agency": "Cavite Provincial Government / DOTr",
+    "concessionaire": "SMC Infrastructure / MPTC (joint venture)",
+    "funding_modality": "PPP",
+    "region": "Region IV-A",
+    "provinces": ["Cavite", "Batangas"],
+    "estimated_completion": "2027-12-31",
+    "completion_confidence": "analyst_estimate",
+    "cost_php_billions": 72.0,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [120.9740, 14.2210],
+        [120.9620, 14.2050],
+        [120.9500, 14.1890],
+        [120.9380, 14.1720],
+        [120.9240, 14.1540],
+        [120.9100, 14.1350],
+        [120.8960, 14.1150],
+        [120.8810, 14.0940],
+        [120.8660, 14.0720],
+        [120.8500, 14.0480],
+        [120.8340, 14.0240],
+        [120.8170, 14.0000],
+        [120.7990, 13.9730]
+      ]
+    },
+    "description": "A 27.06-kilometer expressway linking CALAX's Silang (Aguinaldo) Interchange southward through Amadeo, Tagaytay, Indang, Mendez, and Alfonso in Cavite to Nasugbu, Batangas, where it connects to the planned Nasugbu–Bauan Expressway. The concession agreement between SMC and the Cavite provincial government was finalized in February 2023; MPTC and SMC signed a joint development deal in August 2023.",
+    "sources": [
+      {"label": "Inquirer – SMC, Cavite govt proceed with CBEX", "url": "https://business.inquirer.net/389849/smc-cavite-govt-proceed-with-p27-b-cavite-batangas-expressway-project"},
+      {"label": "Manila Bulletin – MPTC, SMC sign P72-B deal", "url": "https://mb.com.ph/2023/8/15/article-844"},
+      {"label": "Tribune – Toll road giants gear up for CBEX, April 2025", "url": "https://tribune.net.ph/2025/04/27/toll-road-giants-gear-up-for-cbex-development"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-09",
+    "name": "Southeast Metro Manila Expressway (SEMME / C6)",
+    "type": "expressway",
+    "status": "under_construction",
+    "implementing_agency": "DOTr",
+    "concessionaire": "SMC Infrastructure",
+    "funding_modality": "PPP",
+    "region": "NCR",
+    "provinces": ["Metro Manila", "Rizal"],
+    "estimated_completion": "2028-12-31",
+    "completion_confidence": "analyst_estimate",
+    "cost_php_billions": 45.0,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [121.0340, 14.5220],
+        [121.0420, 14.5350],
+        [121.0490, 14.5490],
+        [121.0540, 14.5640],
+        [121.0580, 14.5790],
+        [121.0620, 14.5950],
+        [121.0660, 14.6110],
+        [121.0700, 14.6270],
+        [121.0730, 14.6430],
+        [121.0760, 14.6590],
+        [121.0790, 14.6750],
+        [121.0810, 14.6910],
+        [121.0820, 14.7060]
+      ]
+    },
+    "description": "A 32.7-kilometer elevated toll expressway running along the eastern corridor of Metro Manila and western Rizal, connecting the Skyway system at Arca South, Taguig to the Batasan Complex in Quezon City via C5 Road and Laguna de Bay shoreline. The DOTr signed a right-of-way usage agreement with SMC Infrastructure on February 3, 2025; viaduct construction for Section 1B piers P61–P66 reached 100% completion as of early 2025.",
+    "sources": [
+      {"label": "Manila Bulletin – C6 ROW agreement signed Feb 2025", "url": "https://mb.com.ph/2025/2/3/c6-expressway-inches-closer-to-reality-after-do-tr-san-miguel-right-of-way-usage-agreement-signing"},
+      {"label": "PhilStar – New SMC tollway to open in three years", "url": "https://www.philstar.com/business/2025/02/04/2418973/new-smc-tollway-open-three-years-says-dotr"},
+      {"label": "DPWH PPP – C6 SEMME Project", "url": "https://www.dpwh.gov.ph/dpwh/PPP/projs/MME"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-10",
+    "name": "SLEX Toll Road 5 (TR5 / QuBex – Segment 1)",
+    "type": "expressway",
+    "status": "under_construction",
+    "implementing_agency": "DOTr",
+    "concessionaire": "SMC Infrastructure",
+    "funding_modality": "PPP",
+    "region": "Region IV-A",
+    "provinces": ["Quezon"],
+    "estimated_completion": "2027-12-31",
+    "completion_confidence": "analyst_estimate",
+    "cost_php_billions": 28.15,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [121.6210, 13.9300],
+        [121.6350, 13.9070],
+        [121.6490, 13.8820],
+        [121.6640, 13.8570],
+        [121.6790, 13.8320],
+        [121.6940, 13.8060],
+        [121.7090, 13.7800],
+        [121.7250, 13.7530],
+        [121.7420, 13.7250],
+        [121.7590, 13.6970],
+        [121.7760, 13.6690],
+        [121.7930, 13.6400],
+        [121.8100, 13.6100]
+      ]
+    },
+    "description": "The first 61-kilometer segment of the 417-kilometer Quezon–Bicol Expressway (QuBex / SLEX TR5), running from Barangay Mayao in Lucena City, Quezon to Gumaca, Quezon. The Supplemental Toll Operations Agreement was signed by DOTr and SMC on June 3, 2022, and construction of Segment 1 began in Q1 2025. The full TR5 to Matnog, Sorsogon is targeted for completion by 2030.",
+    "sources": [
+      {"label": "PortCalls Asia – DOTr, SMC sign SLEX TR5 toll operations deal", "url": "https://portcalls.com/dotr-smc-sign-toll-operations-deal-quezon-bicol-expressway/"},
+      {"label": "Inquirer – Quezon-Sorsogon toll road project under way", "url": "https://business.inquirer.net/511369/quezon-sorsogon-toll-road-project-under-way"},
+      {"label": "TRB – SLEX TR-5 Project Page", "url": "https://trb.gov.ph/index.php/toll-road-projects/south-luzon-expressway-toll-road-5-slex-tr-5"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-11",
+    "name": "CAVITEX–C5 Link (Segment 3B)",
+    "type": "expressway",
+    "status": "partially_operational",
+    "implementing_agency": "DPWH",
+    "concessionaire": "MPTC / CAVITEX",
+    "funding_modality": "PPP",
+    "region": "NCR",
+    "provinces": ["Metro Manila"],
+    "estimated_completion": "2026-03-30",
+    "completion_confidence": "official_target",
+    "cost_php_billions": 4.98,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [121.0140, 14.4990],
+        [121.0180, 14.5050],
+        [121.0215, 14.5110],
+        [121.0250, 14.5165],
+        [121.0285, 14.5210],
+        [121.0320, 14.5255],
+        [121.0358, 14.5295],
+        [121.0393, 14.5330],
+        [121.0428, 14.5368],
+        [121.0463, 14.5405],
+        [121.0498, 14.5438]
+      ]
+    },
+    "description": "The 2-kilometer Segment 3B completes the 7.7-kilometer CAVITEX–C5 Link expressway, connecting the Manila–Cavite Expressway (CAVITEX) in Parañaque to C5 Road in Taguig City and cutting Parañaque–Taguig travel time from 90 minutes to 15 minutes. Segment 3B was formally opened by President Marcos on March 30, 2026, with toll collection commencing May 1, 2026.",
+    "sources": [
+      {"label": "CAVITEX – PBBM opens Segment 3B, March 2026", "url": "https://www.cavitex.ph/establishing-full-connectivity-from-cavite-to-taguig-pbbm-inspects-newly-opened-cavitex-c5-link-segment-3b/"},
+      {"label": "Philippine Resources – Cavitex C-5 Link Segment 3B opens", "url": "https://www.philippine-resources.com/articles/2026/3/cavitex-c-5-link-segment-3b-opens-easing-southern-metro-manila-congestion"},
+      {"label": "DPWH PPP – C5 South Link Expressway", "url": "https://www.dpwh.gov.ph/dpwh/PPP/projs/c5south"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-12",
+    "name": "Davao City Bypass Construction Project (DCBCP)",
+    "type": "road",
+    "status": "under_construction",
+    "implementing_agency": "DPWH",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "Region XI",
+    "provinces": ["Davao del Sur", "Davao del Norte"],
+    "estimated_completion": "2028-01-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 70.8,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [125.5220, 7.0200],
+        [125.5280, 7.0650],
+        [125.5350, 7.1100],
+        [125.5400, 7.1450],
+        [125.5420, 7.1800],
+        [125.5380, 7.2200],
+        [125.5310, 7.2600],
+        [125.5280, 7.3000],
+        [125.5250, 7.3400],
+        [125.5200, 7.3780],
+        [125.5180, 7.4050],
+        [125.5160, 7.4380],
+        [125.5120, 7.4700],
+        [125.5080, 7.5050],
+        [125.5050, 7.5350]
+      ]
+    },
+    "description": "A 45.5-km four-lane bypass road connecting Barangay Sirawan in Toril, Davao City to Barangay J.P. Laurel in Panabo City, including the Philippines' longest road tunnel (2.3 km twin-tube). Jointly funded by JICA ODA (Packages I-1 to I-3) and the Philippine government (Packages II-1 to II-3); overall 49% complete as of end-2025 with full opening targeted for 2028.",
+    "sources": [
+      {"label": "DPWH Project Update (2025)", "url": "https://www.dpwh.gov.ph/dpwh/news/37947"},
+      {"label": "Davao City Bypass Road – Wikipedia", "url": "https://en.wikipedia.org/wiki/Davao_City_Bypass_Road"},
+      {"label": "JICA Tunnel Breakthrough Press Release 2025", "url": "https://www.jica.go.jp/english/overseas/philippine/information/press/2025/DCBCPNorthBoundTunnelBreakthrough.html"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-13",
+    "name": "Panay–Guimaras–Negros Island Bridges Project",
+    "type": "bridge",
+    "status": "approved",
+    "implementing_agency": "DPWH",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "Region VI",
+    "provinces": ["Iloilo", "Guimaras", "Negros Occidental"],
+    "estimated_completion": "2030-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 189.0,
+    "geometry": {
+      "type": "MultiLineString",
+      "coordinates": [
+        [
+          [122.5750, 10.7980],
+          [122.5890, 10.7700],
+          [122.6100, 10.7350],
+          [122.6380, 10.7050],
+          [122.6580, 10.6780]
+        ],
+        [
+          [122.7200, 10.5600],
+          [122.7650, 10.5200],
+          [122.8100, 10.4800],
+          [122.8600, 10.4350],
+          [122.9100, 10.3900],
+          [122.9650, 10.3450],
+          [123.0100, 10.3050]
+        ]
+      ]
+    },
+    "description": "A 32.47-km network of two sea-crossing bridges connecting Panay, Guimaras, and Negros islands: Section A (Leganes, Iloilo to Buenavista, Guimaras; 4.97-km sea crossing) and Section B (San Lorenzo, Guimaras to Pulupandan, Negros Occidental; 13.11-km sea crossing). Funded by Korea Eximbank ODA (EDCF); detailed engineering design is ~82% complete as of mid-2025 with civil works for Section A targeted to begin July 2026 and Section A completion by June 2028.",
+    "sources": [
+      {"label": "Panay–Guimaras–Negros Island Bridges – Wikipedia", "url": "https://en.wikipedia.org/wiki/Panay%E2%80%93Guimaras%E2%80%93Negros_Island_Bridges"},
+      {"label": "PTV: Bridging Progress for Every Filipino", "url": "https://ptni.gov.ph/panay-guimaras-negros-link-bridge-bridging-progress-for-every-filipino/"},
+      {"label": "Manila Times: Bridge Design 82% Complete (July 2025)", "url": "https://www.manilatimes.net/2025/07/07/regions/panay-guimaras-negros-bridge-design-82-complete-says-dpwh/2144270"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-14",
+    "name": "4th Cebu–Mactan Bridge and Coastal Road",
+    "type": "bridge",
+    "status": "approved",
+    "implementing_agency": "DPWH",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "Region VII",
+    "provinces": ["Cebu"],
+    "estimated_completion": "2030-11-30",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 76.4,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [123.9320, 10.3420],
+        [123.9380, 10.3390],
+        [123.9430, 10.3360],
+        [123.9490, 10.3330],
+        [123.9550, 10.3300],
+        [123.9620, 10.3280],
+        [123.9690, 10.3260],
+        [123.9760, 10.3250]
+      ]
+    },
+    "description": "A 3.34-km cable-stayed bridge linking Barangay Paknaan in Mandaue City to Barangay Ibo in Lapu-Lapu City (Mactan Island), with an accompanying 4.9-km coastal road. Financed by a ¥120-billion JICA ODA loan; NEDA Board-approved. Civil works for Package 1 are targeted to begin Q3 2026 pending ECC renewal and ROW completion, with overall completion by November 2030.",
+    "sources": [
+      {"label": "DOF – JICA Cebu-Mactan Bridge (4th Bridge) Project", "url": "https://www.dof.gov.ph/download/jica-cebu-mactan-bridge-4th-bridge-and-coastal-road-construction-project/"},
+      {"label": "Philstar Freeman – Promise and Challenges of the 4th Cebu-Mactan Bridge (Jan 2025)", "url": "https://www.philstar.com/the-freeman/cebu-news/2025/01/12/2413670/bridging-progress-promise-and-challenges-4th-cebu-mactan-bridge"},
+      {"label": "JICA – Cebu-Mactan Bridge Project Page", "url": "https://www.jica.go.jp/english/our_work/social_environmental/id/asia/southeast/philippines/c8h0vm0000d9l78n.html"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-15",
+    "name": "EDSA Greenways Project",
+    "type": "road",
+    "status": "approved",
+    "implementing_agency": "DOTr",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "NCR",
+    "provinces": ["Metro Manila"],
+    "estimated_completion": "2028-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 8.0,
+    "geometry": {
+      "type": "MultiLineString",
+      "coordinates": [
+        [
+          [120.9840, 14.6560],
+          [120.9850, 14.6520]
+        ],
+        [
+          [121.0500, 14.6190],
+          [121.0510, 14.6160]
+        ],
+        [
+          [121.0460, 14.5620],
+          [121.0470, 14.5590]
+        ],
+        [
+          [121.0010, 14.5380],
+          [121.0020, 14.5350]
+        ]
+      ]
+    },
+    "description": "A 4.7-km network of elevated pedestrian walkways at four major EDSA mass transit interchange stations: Balintawak, Cubao, Guadalupe, and Taft. Funded by a $123-million ADB loan (project 51117-003); the DOTr signed the project agreement in September 2023. Civil works contract bidding was underway in early 2026 with construction start targeted by mid-2026 and completion by 2028.",
+    "sources": [
+      {"label": "ADB Project 51117-003: EDSA Greenways", "url": "https://www.adb.org/projects/51117-003/main"},
+      {"label": "GMA News: ADB Approves $123M Loan for EDSA Greenways", "url": "https://www.gmanetwork.com/news/money/economy/767914/adb-approves-123-m-loan-for-edsa-greenways-project/story/"},
+      {"label": "Bilyonaryo: DOTr Targets Completion by 2028 (March 2025)", "url": "https://bilyonaryo.com/2025/03/02/making-edsa-walkable-vince-dizon-targets-completion-of-p70b-greenways-project-by-2028/infrastructure/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-16",
+    "name": "Palanca–Villegas Bridge (Metro Manila Bridges Project)",
+    "type": "bridge",
+    "status": "approved",
+    "implementing_agency": "DPWH",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "NCR",
+    "provinces": ["Metro Manila"],
+    "estimated_completion": "2027-06-30",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 1.2,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [120.9810, 14.5870],
+        [120.9820, 14.5845],
+        [120.9830, 14.5820]
+      ]
+    },
+    "description": "A 225-m two-lane bridge crossing the Pasig River in Manila connecting Palanca Street (Quiapo) on the north bank to Villegas Street (Paco) on the south bank, part of the DPWH Metro Manila Logistics Improvement Project (ADB loan 52181-001) to construct 12 new Pasig and Marikina river crossings. NEDA ICC-approved; civil works targeted to start by early 2025 with a 26-month construction period.",
+    "sources": [
+      {"label": "PNA – DPWH New Roads and Bridges for Metro Manila", "url": "https://www.pna.gov.ph/articles/1222378"},
+      {"label": "ADB – Metro Manila Bridges Project (52181-001)", "url": "https://www.adb.org/projects/52181-001/main"},
+      {"label": "Manila Bulletin – DPWH infrastructure projects for Metro Manila traffic (Apr 2024)", "url": "https://mb.com.ph/2024/4/11/dpwh-unveils-comprehensive-infrastructure-projects-to-solve-metro-manila-traffic"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-17",
+    "name": "Bataan–Cavite Interlink Bridge Project",
+    "type": "bridge",
+    "status": "approved",
+    "implementing_agency": "DPWH",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "NCR",
+    "provinces": ["Bataan", "Cavite"],
+    "estimated_completion": "2030-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 175.7,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [120.4840, 14.4380],
+        [120.5200, 14.4150],
+        [120.5600, 14.3900],
+        [120.5980, 14.3620],
+        [120.6230, 14.3400],
+        [120.6500, 14.3220],
+        [120.6780, 14.3100],
+        [120.7050, 14.2980],
+        [120.7300, 14.2830],
+        [120.7550, 14.2680],
+        [120.7800, 14.2500],
+        [120.8050, 14.2320],
+        [120.8280, 14.2130],
+        [120.8500, 14.1980],
+        [120.8720, 14.1840]
+      ]
+    },
+    "description": "A 32.15-km four-lane bridge system spanning Manila Bay from Barangay Alas-asin in Mariveles, Bataan to Barangay Timalan Balsahan in Naic, Cavite, via Corregidor Island. Includes two main cable-stayed bridges (North and South Channel) and 23.5 km of marine viaducts. Financed by ADB ($2.1B) and AIIB ($1.14B) ODA loans; NEDA Board-approved and with bids received for Package 1 in September 2025.",
+    "sources": [
+      {"label": "Bataan–Cavite Interlink Bridge – Wikipedia", "url": "https://en.wikipedia.org/wiki/Bataan%E2%80%93Cavite_Interlink_Bridge"},
+      {"label": "ADB Project 52310-001 – Bataan–Cavite Interlink Bridge", "url": "https://www.adb.org/projects/52310-001/main"},
+      {"label": "BusinessWorld – 8 firms bid for Package 1 (Sept 2025)", "url": "https://www.bworldonline.com/economy/2025/09/30/702045/eight-builders-submit-bids-for-bataan-cavite-interlink-bridge-phase-1/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-18",
+    "name": "NAIA Rehabilitation and Modernisation",
+    "type": "airport",
+    "status": "under_construction",
+    "implementing_agency": "MIAA",
+    "concessionaire": "New NAIA Infrastructure Corporation (NNIC)",
+    "funding_modality": "PPP",
+    "region": "NCR",
+    "provinces": ["Metro Manila"],
+    "estimated_completion": "2029-12-31",
+    "completion_confidence": "official_target",
+    "cost_php_billions": 170.6,
+    "geometry": {
+      "type": "Point",
+      "coordinates": [121.0192, 14.5086]
+    },
+    "description": "San Miguel-led NNIC consortium took over NAIA operations in September 2024 under a 15-year PPP concession worth PHP 170.6 billion. Works include terminal rehabilitation across all four terminals, demolition of Terminal 2 to create a new taxiway, construction of a new Terminal 5, and capacity expansion from 35 million to 62 million passengers per year. Terminal upgrades began in late 2024 with completion targeted by 2029.",
+    "sources": [
+      {"label": "PPP Center – NAIA turnover to NNIC", "url": "https://ppp.gov.ph/in_the_news/naia-turned-over-to-san-miguel-led-group-as-rehabilitation-begins/"},
+      {"label": "Inquirer – SMC wins P170.6-B NAIA rehabilitation bid", "url": "https://business.inquirer.net/445738/smc-wins-bid-for-naia-rehabilitation-project"},
+      {"label": "Manila Bulletin – San Miguel unveils New NAIA plans", "url": "https://mb.com.ph/2024/9/9/naia-s-four-year-countdown-san-miguel-unveils-rehabilitation-plans"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-19",
+    "name": "New Manila International Airport (Bulakan / NMIA)",
+    "type": "airport",
+    "status": "under_construction",
+    "implementing_agency": "DOTr",
+    "concessionaire": "San Miguel Aerocity Inc. (SMAI)",
+    "funding_modality": "PPP",
+    "region": "Region III",
+    "provinces": ["Bulacan"],
+    "estimated_completion": "2028-12-31",
+    "completion_confidence": "analyst_estimate",
+    "cost_php_billions": 735.6,
+    "geometry": {
+      "type": "Point",
+      "coordinates": [120.8474, 14.7347]
+    },
+    "description": "Privately funded reclamation airport on the Manila Bay shoreline in Bulakan, Bulacan, 35 km north of Manila. Land development (dredging and foundation piling) was approximately 80% complete by end-2025, with passenger terminal and runway construction commencing January 2026. Phase 1 targets two runways and a terminal for 35 million passengers by end-2028; the full four-runway airport will serve 100 million passengers.",
+    "sources": [
+      {"label": "Philstar – DOTr: Bulacan airport terminal construction starts January 2026", "url": "https://www.philstar.com/business/2025/05/14/2442874/dotr-bulacan-airport-terminal-starts-construction-january-2026"},
+      {"label": "Wikipedia – New Manila International Airport", "url": "https://en.wikipedia.org/wiki/New_Manila_International_Airport"},
+      {"label": "Airport Technology – New Manila International Airport profile", "url": "https://www.airport-technology.com/projects/new-manila-international-airport-philippines/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-20",
+    "name": "Sangley Point International Airport (SPIA) – Phase 1",
+    "type": "airport",
+    "status": "approved",
+    "implementing_agency": "DOTr",
+    "concessionaire": "Sangley Development Corporation (SDC) consortium",
+    "funding_modality": "PPP",
+    "region": "Region IV-A",
+    "provinces": ["Cavite"],
+    "estimated_completion": "2027-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 110.0,
+    "geometry": {
+      "type": "Point",
+      "coordinates": [120.9040, 14.4954]
+    },
+    "description": "Redevelopment of the existing Sangley Point Naval Air Station in Cavite City into a full international airport, initially targeting 25 million passengers per year. Phase 1 (approximately $2 billion / PHP 110 billion) involves extending the runway from 2.1 km to 3.4 km via reclamation and constructing a new passenger terminal. Joint venture and development agreement between the Cavite provincial government and SDC was signed February 2023; groundbreaking is targeted for early 2026 pending finalisation of a land-use MOA with the Philippine Navy.",
+    "sources": [
+      {"label": "PPP Center – Sangley Point International Airport project page", "url": "https://ppp.gov.ph/ppp_projects/sangley-point-international-airport/"},
+      {"label": "Philstar – GMR to develop Sangley Airport", "url": "https://www.philstar.com/business/2025/08/15/2465492/gmr-develop-sangley-airport"},
+      {"label": "Bilyonaryo – Sangley groundbreaking set for early 2026", "url": "https://bilyonaryo.com/2025/08/14/major-infrastructure-push-2b-sangley-airport-project-set-for-groundbreaking-in-early-2026-targets-25m-passengers/infrastructure/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-21",
+    "name": "Bohol–Panglao International Airport Expansion",
+    "type": "airport",
+    "status": "under_construction",
+    "implementing_agency": "DOTr",
+    "concessionaire": "Aboitiz InfraCapital Incorporated (AIC)",
+    "funding_modality": "PPP",
+    "region": "Region VII",
+    "provinces": ["Bohol"],
+    "estimated_completion": "2027-12-31",
+    "completion_confidence": "official_target",
+    "cost_php_billions": 4.53,
+    "geometry": {
+      "type": "Point",
+      "coordinates": [123.7701, 9.5730]
+    },
+    "description": "Aboitiz InfraCapital received a Notice of Award from DOTr and CAAP on 18 November 2024 and signed a PHP 4.53 billion, 30-year PPP concession in December 2024. The airport was officially turned over to AIC on 16 June 2025. Works include expansion of the passenger terminal building, modernisation of equipment, and development of commercial facilities to grow capacity from the current 1.5 million to 3.9 million passengers per year by 2030, with Phase 2 optimisation works scheduled 2026–2027.",
+    "sources": [
+      {"label": "Aboitiz Eyes – Concession agreement signing announcement", "url": "https://aboitizeyes.aboitiz.com/post/aboitiz-infracapital-signs-concession-agreement-for-bohol-panglao-international-airport"},
+      {"label": "BusinessWorld – Government to award P4.53-B Bohol airport contract to Aboitiz", "url": "https://www.bworldonline.com/corporate/2024/11/13/634565/govt-to-award-p4-53-b-bohol-airport-contract-to-aboitiz-group/"},
+      {"label": "Rappler – Bohol-Panglao airport expansion following Aboitiz takeover", "url": "https://www.rappler.com/business/corporate/bohol-panglao-airport-expansion-aboitiz-takeover/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-22",
+    "name": "Iloilo International Airport Rehabilitation and Expansion",
+    "type": "airport",
+    "status": "approved",
+    "implementing_agency": "DOTr",
+    "concessionaire": "Prime Asset Ventures Inc. (PAVI) / Villar Group",
+    "funding_modality": "PPP",
+    "region": "Region VI",
+    "provinces": ["Iloilo"],
+    "estimated_completion": "2031-12-31",
+    "completion_confidence": "analyst_estimate",
+    "cost_php_billions": 21.16,
+    "geometry": {
+      "type": "Point",
+      "coordinates": [122.4892, 10.8261]
+    },
+    "description": "Prime Asset Ventures Inc. holds Original Proponent Status for a PHP 21.16 billion rehabilitation and expansion of Iloilo International Airport under an Operate-Add-Transfer PPP arrangement. Negotiations concluded in September 2024 and the project was submitted to NEDA-ICC for approval; the DOTr targets award in 2025 once NEDA Board clearance and the Swiss challenge period are completed. Scope includes a new passenger terminal building extension, additional apron, and full equipment modernisation to meet ICAO standards.",
+    "sources": [
+      {"label": "Inquirer – P21-B Iloilo airport project nears NEDA Board", "url": "https://business.inquirer.net/497272/p21-b-iloilo-airport-project-nears-neda-boards-doorstep"},
+      {"label": "Philstar – Iloilo airport upgrade proposal up for NEDA approval", "url": "https://www.philstar.com/business/2024/12/18/2408092/iloilo-airport-upgrade-proposal-neda-approval"},
+      {"label": "Daily Guardian – Iloilo airport privatisation targeted for early 2025", "url": "https://dailyguardian.com.ph/iloilo-airport-privatization-targeted-for-early-2025/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-23",
+    "name": "Cebu Bus Rapid Transit (CBRT) Package 1",
+    "type": "road",
+    "status": "partially_operational",
+    "implementing_agency": "DOTr",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "Region VII",
+    "provinces": ["Cebu"],
+    "estimated_completion": "2026-09-26",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 0.99,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [123.8897, 10.2900],
+        [123.8910, 10.2942],
+        [123.8921, 10.2975],
+        [123.8933, 10.3010],
+        [123.8942, 10.3040],
+        [123.8951, 10.3068],
+        [123.8958, 10.3095],
+        [123.8965, 10.3115],
+        [123.8974, 10.3138],
+        [123.8981, 10.3162]
+      ]
+    },
+    "description": "Package 1 of the Cebu Bus Rapid Transit covers 2.38 km along Osmeña Boulevard from the Cebu South Bus Terminal (CSBT) to Fuente Osmeña/Cebu Provincial Capitol. Partial operations began March 13, 2026, with the World Bank IBRD loan of $116 million (reduced to $56.1 million after cancellation) set to expire September 2026.",
+    "sources": [
+      {"label": "World Bank – Implementation Status Report P119343 (2025)", "url": "https://documents1.worldbank.org/curated/en/099070125071033875/pdf/P119343-efd90dac-9363-4b25-9198-09d90c19a0f3.pdf"},
+      {"label": "Philstar Freeman – CBRT starts partial operations March 13 2026", "url": "https://www.philstar.com/the-freeman/cebu-news/2026/03/13/2514019/cbrt-starts-partial-operations-today"},
+      {"label": "Manila Bulletin – Govt seeks World Bank loan cut for delayed Cebu BRT", "url": "https://mb.com.ph/2026/03/18/govt-seeks-world-bank-loan-cut-for-delayed-cebu-brt"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-24",
+    "name": "Davao Public Transport Modernization Project (DPTMP)",
+    "type": "road",
+    "status": "approved",
+    "implementing_agency": "DOTr",
+    "concessionaire": null,
+    "funding_modality": "ODA",
+    "region": "Region XI",
+    "provinces": ["Davao del Sur"],
+    "estimated_completion": "2028-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 73.37,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [125.5430, 7.1907],
+        [125.5460, 7.1965],
+        [125.5490, 7.2020],
+        [125.5510, 7.2075],
+        [125.5530, 7.2130],
+        [125.5545, 7.2180],
+        [125.5560, 7.2230],
+        [125.5580, 7.2280],
+        [125.5600, 7.2330],
+        [125.5625, 7.2380],
+        [125.5645, 7.2430],
+        [125.5665, 7.2475]
+      ]
+    },
+    "description": "The Davao Public Transport Modernization Project (formerly Davao High Priority Bus System / BRT) will establish a city-wide modern bus network of ~672 km of routes in Davao City, with ~1,100 electric and Euro-5 diesel buses, 5 depots, 3 terminals, and ~1,000 bus stops. ADB approved a $1 billion loan; civil works contracts were signed in 2024, with pilot operations targeted for 2027.",
+    "sources": [
+      {"label": "ADB – Project 45296-006 Davao Public Transport Modernization", "url": "https://www.adb.org/projects/45296-006/main"},
+      {"label": "Sun Star – Davao bus project rollout pushed to 2027 amid land delays", "url": "https://www.sunstar.com.ph/davao/davao-bus-project-rollout-pushed-to-2027-amid-land-delays"},
+      {"label": "Mindanao Times – Construction of depots, terminals to start this year", "url": "https://www.mindanaotimes.com.ph/construction-of-depots-terminals-to-start-this-year-as-davao-bus-project-fast-tracked/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-25",
+    "name": "NLEX-C5 Northlink Expressway Segment 8.2 Section 1A",
+    "type": "expressway",
+    "status": "under_construction",
+    "implementing_agency": "DPWH",
+    "concessionaire": "NLEX Corporation (Metro Pacific Tollways)",
+    "funding_modality": "PPP",
+    "region": "NCR",
+    "provinces": ["Metro Manila"],
+    "estimated_completion": "2026-09-30",
+    "completion_confidence": "official_target",
+    "cost_php_billions": 2.2,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [121.0207, 14.6955],
+        [121.0240, 14.6918],
+        [121.0270, 14.6885],
+        [121.0295, 14.6855],
+        [121.0318, 14.6826],
+        [121.0340, 14.6797],
+        [121.0360, 14.6768],
+        [121.0378, 14.6742]
+      ]
+    },
+    "description": "Section 1A of the NLEX-C5 Northlink Segment 8.2 is a 2.0 km four-lane elevated expressway connecting Mindanao Avenue to Quirino Highway in Quezon City, built by China Road and Bridge Corporation for NLEX Corporation. Groundbreaking was in March 2025; Section 1A reached 50% completion by January 2026, with NLEX targeting full operations by September 2026.",
+    "sources": [
+      {"label": "NLEX Corporation – NLEX inks deal with CRBC for C5 Northlink Segment (Feb 2025)", "url": "https://nlex.com.ph/2025/02/27/nlex-inks-deal-with-crbc-for-new-nlex-c5-northlink-segment/"},
+      {"label": "BusinessWorld – NLEX-C5 Northlink Section 1A reaches 50% completion (Jan 2026)", "url": "https://www.bworldonline.com/corporate/2026/01/15/724270/nlex-c5-northlink-section-1a-reaches-50-completion/"},
+      {"label": "BusinessWorld – NLEX sees Northlink section completed by June (Mar 2026)", "url": "https://www.bworldonline.com/economy/2026/03/15/736418/nlex-sees-northlink-section-completed-by-june/"}
+    ],
+    "last_updated": "2026-04-17"
+  },
+  {
+    "id": "seed-26",
+    "name": "Cagayan de Oro Eastern Interior Bypass Road",
+    "type": "road",
+    "status": "under_construction",
+    "implementing_agency": "DPWH",
+    "concessionaire": null,
+    "funding_modality": "GAA",
+    "region": "Region X",
+    "provinces": ["Misamis Oriental"],
+    "estimated_completion": "2027-12-31",
+    "completion_confidence": "delayed_likely",
+    "cost_php_billions": 2.68,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [124.6520, 8.4870],
+        [124.6590, 8.4915],
+        [124.6660, 8.4960],
+        [124.6730, 8.5005],
+        [124.6800, 8.5050],
+        [124.6870, 8.5090],
+        [124.6940, 8.5125],
+        [124.7010, 8.5160],
+        [124.7080, 8.5195],
+        [124.7150, 8.5230]
+      ]
+    },
+    "description": "The CDO Eastern Interior Bypass Road is a six-lane, 10.8 km bypass road in Cagayan de Oro City traversing interior barangays from Gusa/Cugman to the Agusan area, including four bridges (the key Agusan Bridge 3 measuring 210 m). Funded under GAA, multiple contract packages have been awarded and are under construction since 2023, with the project at under 50% completion as of 2025.",
+    "sources": [
+      {"label": "MetroCDO Dev – Eastern Interior Bypass Road, March 2025", "url": "https://metrocdodev.com/2025/03/24/project-watch-eastern-interior-bypass-road-agusan-bridge-3-as-of-march-2025/"},
+      {"label": "MetroCDO Dev – Bypass road less than halfway completed (June 2024)", "url": "https://metrocdodev.com/2024/06/10/project-watch-cdo-eastern-interior-bypass-road-still-less-than-halfway-completed/"},
+      {"label": "MetroCDO Dev – Agusan Section breaks ground (Aug 2023)", "url": "https://metrocdodev.com/2023/08/01/project-watch-cdo-eastern-interior-bypass-road-agusan-section-breaks-ground/"}
+    ],
+    "last_updated": "2026-04-17"
+  }
+]
