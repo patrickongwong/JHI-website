@@ -375,22 +375,19 @@
     "geometry": {
       "type": "LineString",
       "coordinates": [
-        [121.6210, 13.9300],
-        [121.6350, 13.9070],
-        [121.6490, 13.8820],
-        [121.6640, 13.8570],
-        [121.6790, 13.8320],
-        [121.6940, 13.8060],
-        [121.7090, 13.7800],
-        [121.7250, 13.7530],
-        [121.7420, 13.7250],
-        [121.7590, 13.6970],
-        [121.7760, 13.6690],
-        [121.7930, 13.6400],
-        [121.8100, 13.6100]
+        [121.6173, 13.9311],
+        [121.6500, 13.9450],
+        [121.6900, 13.9700],
+        [121.7400, 13.9900],
+        [121.7900, 14.0000],
+        [121.8500, 13.9950],
+        [121.9100, 13.9850],
+        [121.9600, 13.9650],
+        [122.0200, 13.9400],
+        [122.0989, 13.9249]
       ]
     },
-    "description": "The first 61-kilometer segment of the 417-kilometer Quezon–Bicol Expressway (QuBex / SLEX TR5), running from Barangay Mayao in Lucena City, Quezon to Gumaca, Quezon. The Supplemental Toll Operations Agreement was signed by DOTr and SMC on June 3, 2022, and construction of Segment 1 began in Q1 2025. The full TR5 to Matnog, Sorsogon is targeted for completion by 2030.",
+    "description": "The first 61-kilometer segment of the 417-kilometer Quezon–Bicol Expressway (QuBex / SLEX TR5), running roughly along the Maharlika Highway corridor from Barangay Mayao in Lucena City, Quezon east through Pagbilao, Padre Burgos, and Atimonan to Gumaca, Quezon. The Supplemental Toll Operations Agreement was signed by DOTr and SMC on June 3, 2022, and construction of Segment 1 began in Q1 2025. The full TR5 to Matnog, Sorsogon is targeted for completion by 2030.",
     "sources": [
       {"label": "PortCalls Asia – DOTr, SMC sign SLEX TR5 toll operations deal", "url": "https://portcalls.com/dotr-smc-sign-toll-operations-deal-quezon-bicol-expressway/"},
       {"label": "Inquirer – Quezon-Sorsogon toll road project under way", "url": "https://business.inquirer.net/511369/quezon-sorsogon-toll-road-project-under-way"},
