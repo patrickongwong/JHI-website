@@ -117,6 +117,8 @@ async function loadProjects() {
   }
   allProjects = await res.json();
   allProjects.forEach(renderProject);
+  buildFilters();
+  counterEl.textContent = `Showing ${allProjects.length} of ${allProjects.length} projects`;
   console.log(`infra map: loaded ${allProjects.length} projects`);
 }
 
@@ -210,4 +212,130 @@ function clearHighlight() {
 detailClose.addEventListener("click", () => {
   detailPanel.classList.add("hidden");
   clearHighlight();
+});
+
+const filterGroupsEl = document.getElementById("filter-groups");
+const resetBtn = document.getElementById("reset-filters");
+const counterEl = document.getElementById("result-counter");
+
+const FILTER_DEFS = [
+  { key: "region",              label: "Region" },
+  { key: "provinces",           label: "Province",   array: true, scrollable: true },
+  { key: "implementing_agency", label: "Agency" },
+  { key: "funding_modality",    label: "Funding" },
+  { key: "type",                label: "Type" },
+  { key: "status",              label: "Status" },
+];
+
+const BUCKET_FILTER = { key: "_bucket", label: "Completion horizon",
+  options: [
+    { value: "green", label: "≤ 1 year",  swatch: COLORS.green },
+    { value: "amber", label: "1–3 years", swatch: COLORS.amber },
+    { value: "blue",  label: "3+ years",  swatch: COLORS.blue },
+  ]};
+
+const activeFilters = {};
+
+function uniqueValues(projects, def) {
+  const set = new Set();
+  for (const p of projects) {
+    const val = p[def.key];
+    if (def.array) val.forEach((v) => set.add(v));
+    else if (val != null) set.add(val);
+  }
+  return [...set].sort();
+}
+
+function buildFilters() {
+  filterGroupsEl.innerHTML = "";
+
+  // Bucket filter
+  const bucketGroup = document.createElement("div");
+  bucketGroup.className = "filter-group";
+  bucketGroup.innerHTML = `<h3>${BUCKET_FILTER.label}</h3>`;
+  for (const opt of BUCKET_FILTER.options) {
+    const id = `f-${BUCKET_FILTER.key}-${opt.value}`;
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" data-filter="${BUCKET_FILTER.key}" data-value="${opt.value}" id="${id}" /> <span class="color-swatch" style="background:${opt.swatch}"></span> ${opt.label}`;
+    bucketGroup.appendChild(label);
+  }
+  filterGroupsEl.appendChild(bucketGroup);
+
+  // Categorical filters
+  for (const def of FILTER_DEFS) {
+    const values = uniqueValues(allProjects, def);
+    const group = document.createElement("div");
+    group.className = "filter-group";
+    const inner = def.scrollable ? `<div class="scrollable">` : "";
+    const innerEnd = def.scrollable ? `</div>` : "";
+    group.innerHTML = `<h3>${def.label}</h3>${inner}${
+      values.map((v) => {
+        const id = `f-${def.key}-${v.replace(/\W+/g, "-")}`;
+        return `<label><input type="checkbox" data-filter="${def.key}" data-value="${escapeHtml(v)}" id="${id}" /> ${escapeHtml(v)}</label>`;
+      }).join("")
+    }${innerEnd}`;
+    filterGroupsEl.appendChild(group);
+  }
+
+  filterGroupsEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener("change", onFilterChange);
+  });
+}
+
+function onFilterChange(ev) {
+  const cb = ev.target;
+  const key = cb.dataset.filter;
+  const value = cb.dataset.value;
+  if (!activeFilters[key]) activeFilters[key] = new Set();
+  if (cb.checked) activeFilters[key].add(value);
+  else {
+    activeFilters[key].delete(value);
+    if (activeFilters[key].size === 0) delete activeFilters[key];
+  }
+  applyFilters();
+}
+
+function projectMatches(project, layer) {
+  for (const [key, allowed] of Object.entries(activeFilters)) {
+    if (key === "_bucket") {
+      if (!allowed.has(layer._bucket)) return false;
+    } else if (key === "provinces") {
+      if (!project.provinces.some((p) => allowed.has(p))) return false;
+    } else {
+      const val = project[key];
+      if (val == null || !allowed.has(val)) return false;
+    }
+  }
+  return true;
+}
+
+function applyFilters() {
+  let visible = 0;
+  for (const project of allProjects) {
+    const layer = layerByProjectId.get(project.id);
+    if (!layer) continue;
+    const match = projectMatches(project, layer);
+    if (match) {
+      if (!projectLayer.hasLayer(layer)) projectLayer.addLayer(layer);
+      visible++;
+    } else {
+      if (projectLayer.hasLayer(layer)) projectLayer.removeLayer(layer);
+    }
+  }
+  counterEl.textContent = `Showing ${visible} of ${allProjects.length} projects`;
+}
+
+resetBtn.addEventListener("click", () => {
+  Object.keys(activeFilters).forEach((k) => delete activeFilters[k]);
+  filterGroupsEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.checked = false;
+  });
+  applyFilters();
+});
+
+// Filter-rail collapse toggle
+const filterToggle = document.getElementById("filter-toggle");
+filterToggle.addEventListener("click", () => {
+  document.body.classList.toggle("filters-collapsed");
+  map.invalidateSize();
 });
