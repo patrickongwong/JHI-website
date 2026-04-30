@@ -296,7 +296,7 @@
         margin: 2px auto 0;
         position: relative;
       }
-      .donut-wrap svg {
+      .donut-wrap canvas {
         width: 158px;
         height: 158px;
         display: block;
@@ -687,6 +687,11 @@
         height: 108px;
         margin-top: 2px;
       }
+      .rfd-card .ring canvas {
+        width: 108px;
+        height: 108px;
+        display: block;
+      }
       .rfd-card .pct {
         position: absolute;
         inset: 0;
@@ -929,27 +934,7 @@
         <div class="r-side">
           <div class="side-h">OVERALL SUMMARY</div>
           <div class="donut-wrap">
-            <svg viewBox="0 0 100 100">
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
-                stroke="#3a3a3a"
-                stroke-width="5"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
-                stroke="#C9A961"
-                stroke-width="5"
-                stroke-dasharray="220 264"
-                stroke-linecap="round"
-                transform="rotate(-90 50 50)"
-              />
-            </svg>
+            <canvas id="profileDonut" width="474" height="474"></canvas>
             <div class="donut-center">
               <div class="lab">OVERALL<br />PROFILE</div>
               <div class="val" id="profileLabel">STRONG<br />FOUNDATION</div>
@@ -1063,27 +1048,7 @@
                 <div class="ttl">RFD ASYMMETRY</div>
                 <div class="sub">(Left vs Right)</div>
                 <div class="ring">
-                  <svg viewBox="0 0 100 100" width="108" height="108">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="42"
-                      fill="none"
-                      stroke="#EEE"
-                      stroke-width="9"
-                    />
-                    <circle
-                      id="rfdRing"
-                      cx="50"
-                      cy="50"
-                      r="42"
-                      fill="none"
-                      stroke="#D14B3F"
-                      stroke-width="9"
-                      stroke-linecap="round"
-                      transform="rotate(-90 50 50)"
-                    />
-                  </svg>
+                  <canvas id="rfdRing" width="324" height="324"></canvas>
                   <div class="pct" id="rfdPct">—</div>
                 </div>
                 <div class="lbl" id="rfdLbl">High Asymmetry</div>
@@ -1522,6 +1487,33 @@
           return Math.max(0, Math.min(100, p))
         }
 
+        function drawRing(canvas, fraction, fgColor, bgColor, strokeFraction) {
+          if (!canvas) return
+          const ctx = canvas.getContext('2d')
+          const w = canvas.width,
+            h = canvas.height
+          ctx.clearRect(0, 0, w, h)
+          const cx = w / 2,
+            cy = h / 2
+          const lw = strokeFraction * w
+          const r = w / 2 - lw / 2 - lw * 0.05
+          ctx.lineWidth = lw
+          ctx.strokeStyle = bgColor
+          ctx.beginPath()
+          ctx.arc(cx, cy, r, 0, Math.PI * 2)
+          ctx.stroke()
+          const f = Math.max(0, Math.min(1, fraction))
+          if (f > 0) {
+            ctx.strokeStyle = fgColor
+            ctx.lineCap = 'round'
+            const start = -Math.PI / 2
+            const end = start + Math.PI * 2 * f
+            ctx.beginPath()
+            ctx.arc(cx, cy, r, start, end)
+            ctx.stroke()
+          }
+        }
+
         function populate(d) {
           const a = d.athlete
           athleteName = (a.name || 'Athlete').toString()
@@ -1626,16 +1618,25 @@
           if (d.rfdAsym) {
             const pct = firstNum(d.rfdAsym[1]) || 0
             $('rfdPct').textContent = pct + '%'
-            const C = 2 * Math.PI * 42
-            const dash = (pct / 100) * C
-            const ring = document.getElementById('rfdRing')
-            ring.setAttribute('stroke-dasharray', dash + ' ' + (C - dash))
             const high = pct >= 10
             $('rfdLbl').textContent = high ? 'High Asymmetry' : 'Within Target'
             $('rfdLbl').style.color = high ? 'var(--red)' : 'var(--green-dark)'
-            ring.setAttribute('stroke', high ? '#D14B3F' : '#2E7D32')
             $('rfdPct').style.color = high ? 'var(--red)' : 'var(--green-dark)'
+            drawRing(
+              document.getElementById('rfdRing'),
+              pct / 100,
+              high ? '#D14B3F' : '#2E7D32',
+              '#EEEEEE',
+              9 / 100,
+            )
           }
+          drawRing(
+            document.getElementById('profileDonut'),
+            220 / (2 * Math.PI * 42),
+            '#C9A961',
+            '#3A3A3A',
+            5 / 100,
+          )
 
           // Bar chart helper
           const setBars = (LId, RId, LValId, RValId, L, R, scaleMax) => {
