@@ -1737,14 +1737,43 @@
           if (!parsedData) return
           setStatus('Rendering report to PDF…')
           pdfBtn.disabled = true
+          const el = document.getElementById('report')
+          const prevShadow = el.style.boxShadow
+          el.style.boxShadow = 'none'
           try {
-            const el = document.getElementById('report')
+            if (document.fonts && document.fonts.ready) {
+              await document.fonts.ready
+            }
+            const imgs = Array.from(el.querySelectorAll('img'))
+            await Promise.all(
+              imgs.map(img =>
+                img.complete && img.naturalWidth
+                  ? Promise.resolve()
+                  : new Promise(res => {
+                      img.addEventListener('load', res, { once: true })
+                      img.addEventListener('error', res, { once: true })
+                    }),
+              ),
+            )
+            if (imgs.length) {
+              try {
+                await Promise.all(imgs.map(i => (i.decode ? i.decode().catch(() => {}) : Promise.resolve())))
+              } catch (e) {}
+            }
+            const rect = el.getBoundingClientRect()
             const canvas = await html2canvas(el, {
-              scale: 2,
+              scale: 3,
               useCORS: true,
               backgroundColor: '#ffffff',
+              width: rect.width,
+              height: rect.height,
+              windowWidth: rect.width,
+              windowHeight: rect.height,
+              scrollX: 0,
+              scrollY: -window.scrollY,
+              logging: false,
             })
-            const img = canvas.toDataURL('image/jpeg', 0.94)
+            const img = canvas.toDataURL('image/png')
             const { jsPDF } = window.jspdf
             const wPx = canvas.width,
               hPx = canvas.height
@@ -1754,8 +1783,9 @@
               orientation: hMm > wMm ? 'p' : 'l',
               unit: 'mm',
               format: [wMm, hMm],
+              compress: true,
             })
-            pdf.addImage(img, 'JPEG', 0, 0, wMm, hMm, undefined, 'FAST')
+            pdf.addImage(img, 'PNG', 0, 0, wMm, hMm, undefined, 'FAST')
             const fname =
               (athleteName.replace(/[^a-z0-9]+/gi, '_') || 'Athlete') +
               '_Performance_Report.pdf'
@@ -1765,6 +1795,7 @@
             console.error(err)
             setStatus('Failed to render PDF: ' + err.message, 'error')
           } finally {
+            el.style.boxShadow = prevShadow
             pdfBtn.disabled = false
           }
         }
