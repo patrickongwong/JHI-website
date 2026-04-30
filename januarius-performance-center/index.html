@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Januarius Performance Center — Report Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#C9A961;
+    --gold-2:#E0C277;
+    --black:#000000;
+    --dark:#111111;
+    --dark-2:#1a1a1a;
+    --grey-line:#D9D9D9;
+    --grey-soft:#F2F2F2;
+    --green:#4CAF50;
+    --green-dark:#2E7D32;
+    --amber:#F4B400;
+    --red:#D14B3F;
+    --text-dark:#1A1A1A;
+    --text-muted:#666;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:'Inter',Arial,sans-serif;color:var(--text-dark);background:#fafafa;}
+
+  /* ---- Uploader UI (hidden in PDF) ---- */
+  .uploader{
+    max-width:680px;margin:40px auto;padding:32px;background:#fff;border-radius:14px;
+    box-shadow:0 6px 24px rgba(0,0,0,.06);
+  }
+  .uploader h1{margin:0 0 6px;font-weight:800;font-size:24px;color:var(--black)}
+  .uploader h1 span{color:var(--gold)}
+  .uploader p{margin:0 0 22px;color:var(--text-muted);font-size:14px;line-height:1.5}
+  .file-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .file-input-wrap{flex:1;min-width:220px;position:relative}
+  .file-input-wrap input[type=file]{
+    width:100%;padding:12px;border:2px dashed #ccc;border-radius:10px;background:#fafafa;cursor:pointer;font-size:13px;
+  }
+  .btn{
+    padding:12px 22px;border-radius:10px;border:0;font-weight:600;font-size:14px;cursor:pointer;
+    background:var(--black);color:#fff;transition:transform .08s ease, opacity .15s;
+  }
+  .btn.gold{background:var(--gold);color:var(--black)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn:not(:disabled):hover{transform:translateY(-1px)}
+  .status{margin-top:14px;font-size:13px;color:var(--text-muted)}
+  .status.error{color:var(--red)}
+  .status.ok{color:var(--green-dark)}
+
+  /* ---- Report (printable) ---- */
+  .stage{display:flex;justify-content:center;padding:24px 12px 60px}
+  .report{
+    width:1080px;background:#fff;color:var(--black);
+    box-shadow:0 8px 30px rgba(0,0,0,.10);
+    display:grid;
+    grid-template-columns:240px 1fr;
+    grid-template-rows:auto 1fr auto auto;
+    grid-template-areas:
+      "header header"
+      "side   main"
+      "grip   grip"
+      "footer footer";
+    overflow:hidden;
+    position:relative;
+  }
+  .report.hidden{display:none}
+
+  /* Header — FULL WIDTH */
+  .r-header{
+    grid-area:header;background:var(--black);color:#fff;display:grid;
+    grid-template-columns:140px minmax(0,1fr) 280px;gap:18px;padding:14px 24px 14px 18px;align-items:center;
+    position:relative;
+  }
+  .r-header::before, .r-header::after{
+    content:"";position:absolute;top:0;width:200px;height:100%;
+    background:radial-gradient(circle at 80% 50%, rgba(201,169,97,.06) 0%, rgba(0,0,0,0) 60%);
+    pointer-events:none;
+  }
+  .r-header::before{left:0}
+  .r-header::after{right:0;transform:scaleX(-1)}
+  .r-logo{display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
+  .r-logo img{width:120px;height:auto;display:block}
+  .r-title{display:flex;flex-direction:column;gap:4px;position:relative;z-index:1}
+  .r-title .h1{font-weight:800;font-size:30px;letter-spacing:1px;line-height:1.05}
+  .r-title .h2{font-weight:700;font-size:22px;color:var(--gold);letter-spacing:1px;margin-bottom:8px}
+  .meta-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 22px;font-size:11px;color:#fff}
+  .meta-grid .item{display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .meta-grid .item b{color:#fff;letter-spacing:.6px;font-weight:700}
+  .meta-grid .item .v{color:#ddd;font-weight:500}
+  .meta-grid .sepv{width:1px;background:var(--gold);align-self:stretch;margin:2px 0}
+  .meta-grid{position:relative}
+  .meta-row{display:flex;align-items:center;gap:18px;padding:1px 0}
+  .meta-row .item{display:flex;align-items:center;gap:6px}
+  .meta-row .pipe{color:var(--gold);font-weight:800}
+  .r-blurb{font-size:10.5px;line-height:1.55;color:#ddd;position:relative;z-index:1;word-break:normal;overflow-wrap:break-word}
+
+  /* Sidebar */
+  .r-side{
+    grid-area:side;background:var(--dark);color:#fff;padding:14px 16px 18px;display:flex;flex-direction:column;gap:14px;
+  }
+  .side-h{
+    text-align:center;font-weight:700;font-size:10.5px;letter-spacing:2.5px;color:var(--gold);
+    border-top:1px solid #3a3a3a;border-bottom:1px solid #3a3a3a;padding:7px 0;
+  }
+  .donut-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;margin:2px auto 0;position:relative}
+  .donut-wrap svg{width:158px;height:158px;display:block}
+  .donut-center{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    pointer-events:none;
+  }
+  .donut-center .lab{font-size:8.5px;letter-spacing:2.2px;color:var(--gold);margin-bottom:4px;line-height:1.2}
+  .donut-center .val{font-size:14px;font-weight:800;color:#fff;letter-spacing:.6px;line-height:1.1}
+  .summary-text{font-size:10.5px;line-height:1.55;color:#ddd;text-align:center;padding:0 6px;margin-top:2px}
+
+  .strength-list{display:flex;flex-direction:column;gap:7px}
+  .si{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:center;font-size:10.5px;line-height:1.35}
+  .si .ic{width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+  .si .ic img{width:36px;height:36px;display:block;object-fit:contain}
+  .quote{
+    background:#181818;border:1px solid #2a2a2a;padding:12px 14px;color:#eee;font-size:10.5px;font-style:italic;
+    line-height:1.55;border-radius:2px;margin-top:auto;text-align:center;position:relative;
+  }
+  .quote .qopen,.quote .qclose{color:var(--gold);font-size:24px;font-weight:800;line-height:.4;font-style:normal;display:inline-block}
+  .quote .qopen{margin-right:4px}
+  .quote .qclose{margin-left:4px;transform:translateY(8px)}
+  .quote .by{display:block;margin-top:8px;font-style:normal;font-size:9px;letter-spacing:1.5px;color:var(--gold);font-weight:700}
+
+  /* Main */
+  .r-main{grid-area:main;padding:14px 22px 18px;display:flex;flex-direction:column;gap:14px;background:#fff}
+
+  .section{display:flex;flex-direction:column;gap:8px}
+  .section-h{
+    display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;letter-spacing:.4px;
+    border-bottom:1px solid var(--gold);padding-bottom:5px;
+  }
+  .section-h .num{color:var(--gold);font-weight:800}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid-3b{display:grid;grid-template-columns:1fr 1fr 178px;gap:12px}
+  .card{
+    background:#fff;border:1px solid #E5E5E5;border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;position:relative;overflow:hidden;
+  }
+  .card .ttl{font-weight:800;font-size:11px;letter-spacing:.4px}
+  .card .sub{font-size:10px;color:var(--text-muted);margin-top:-2px}
+  .card .big{font-size:30px;font-weight:800;color:var(--gold);line-height:1;margin-top:2px}
+  .card .big .unit{color:var(--text-muted);font-size:12px;font-weight:600;margin-left:4px}
+  .card .meta{font-size:10.5px;color:#444}
+  .card .illu{position:absolute;top:8px;right:10px}
+  .card .illu img{width:54px;height:auto;display:block}
+
+  /* Gauge bar */
+  .gauge{margin-top:6px;position:relative;padding-bottom:14px}
+  .gauge .bar{
+    position:relative;height:9px;border-radius:5px;overflow:hidden;
+    background:linear-gradient(to right,#D14B3F 0 33%,#F4B400 33% 66%,#4CAF50 66% 100%);
+  }
+  .gauge .marker{
+    position:absolute;bottom:0;width:0;height:0;
+    border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid #000;
+    transform:translateX(-50%);
+  }
+  .gauge .scale{display:flex;justify-content:space-between;font-size:9px;color:#666;margin-top:3px}
+  .bench{font-size:10.5px;color:var(--gold);font-weight:600;margin-top:2px}
+  .bench b{color:var(--gold)}
+
+  /* Bar chart */
+  .barchart-wrap{display:flex;align-items:stretch;gap:4px;margin-top:6px}
+  .axis-line{display:flex;flex-direction:column;justify-content:space-between;height:84px;font-size:8.5px;color:#888;padding:0 2px 12px 0;text-align:right;min-width:18px}
+  .barchart{position:relative;flex:1;height:84px;border-bottom:1px dashed #ccc;display:flex;align-items:flex-end;gap:30px;justify-content:center;padding:0 4px}
+  .barchart::before{content:"";position:absolute;left:0;right:0;top:0;border-top:1px dashed #ddd}
+  .bc-col{display:flex;flex-direction:column;align-items:center;width:60px;position:relative;height:100%;justify-content:flex-end}
+  .bc-bar{width:54px;border-radius:3px 3px 0 0;display:flex;align-items:flex-start;justify-content:center;color:#fff;font-size:11px;font-weight:800;padding-top:3px;position:relative}
+  .barchart.amber .bc-bar{background:#C49A3F}
+  .barchart.green .bc-bar{background:#5C8A2E}
+  .bc-lab{font-size:10.5px;color:#444;font-weight:600;position:absolute;bottom:-14px;left:0;right:0;text-align:center}
+  .chart-meta{font-size:10.5px;line-height:1.45;color:#444}
+  .chart-meta .red{color:var(--red);font-weight:700}
+  .chart-meta .grn{color:#5C8A2E;font-weight:700}
+
+  /* Takeaway dark box */
+  .takeaway{
+    background:var(--dark);color:#fff;border-radius:4px;padding:14px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;justify-content:center;
+  }
+  .takeaway .ic{width:42px;height:42px;display:flex;align-items:center;justify-content:center}
+  .takeaway .ic img{width:42px;height:auto;display:block}
+  .takeaway .ttl{color:var(--gold);font-size:10.5px;letter-spacing:1.6px;font-weight:800}
+  .takeaway .body{font-size:10px;line-height:1.5;color:#eee;font-weight:500}
+
+  /* RFD donut card */
+  .rfd-card{
+    background:#fff;border:1px solid #E5E5E5;border-radius:4px;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:1px;
+  }
+  .rfd-card .ttl{font-weight:800;font-size:11px;letter-spacing:.3px;text-align:center}
+  .rfd-card .sub{font-size:9.5px;color:var(--text-muted);text-align:center}
+  .rfd-card .ring{position:relative;width:108px;height:108px;margin-top:2px}
+  .rfd-card .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:var(--red)}
+  .rfd-card .lbl{font-size:10.5px;color:var(--red);font-weight:800;margin-top:2px}
+  .rfd-card .tg{font-size:9.5px;color:#666}
+
+  /* Hand grip section (full width) */
+  .r-grip{
+    grid-area:grip;background:#fff;padding:10px 22px 18px;display:flex;flex-direction:column;gap:8px;
+  }
+  .grip-row{
+    display:grid;grid-template-columns:repeat(4,1fr) 220px;gap:0;
+    border:1px solid #E5E5E5;border-radius:4px;padding:6px 0;
+  }
+  .grip-cell{
+    border-right:1px solid #E5E5E5;padding:6px 14px;display:grid;grid-template-columns:28px 1fr;grid-template-rows:auto auto auto;gap:2px 8px;align-items:center;
+  }
+  .grip-cell:nth-of-type(4){border-right:0}
+  .grip-cell .ic{grid-row:1 / span 3;width:30px;height:auto;align-self:start;margin-top:2px}
+  .grip-cell .ic img{width:30px;height:auto;display:block}
+  .grip-cell .h{grid-column:2;font-size:10px;letter-spacing:1px;color:#1A1A1A;font-weight:800;margin-top:2px}
+  .grip-cell .v{grid-column:2;font-size:22px;font-weight:800;color:var(--gold);line-height:1;display:flex;align-items:baseline;gap:5px;flex-wrap:wrap}
+  .grip-cell .v .unit{color:var(--text-muted);font-size:11px;font-weight:600}
+  .grip-cell .v .side{font-size:11px;color:#666;font-weight:600}
+  .grip-cell .m{grid-column:2;font-size:10px;color:#555;line-height:1.45;margin-top:2px}
+  .grip-take{
+    background:var(--dark);color:#fff;border-radius:4px;margin:-6px 8px -6px 0;padding:14px 14px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;justify-content:center;
+  }
+  .grip-take .ic img{width:36px;height:auto;display:block}
+  .grip-take .ttl{color:var(--gold);font-size:10.5px;letter-spacing:1.6px;font-weight:800}
+  .grip-take .body{font-size:10px;line-height:1.5;color:#eee}
+
+  /* Footer */
+  .r-footer{
+    grid-area:footer;background:var(--black);color:#fff;display:grid;grid-template-columns:1fr 1.4fr 1fr;align-items:center;padding:9px 24px;font-size:9.5px;letter-spacing:1.2px;white-space:nowrap;
+  }
+  .r-footer .left{display:flex;align-items:center;gap:10px;color:#bbb;font-weight:600}
+  .r-footer .left img{width:24px;height:auto;display:block}
+  .r-footer .center{color:var(--gold);font-weight:700;text-align:center}
+  .r-footer .right{color:#bbb;font-weight:600;text-align:right}
+
+  @media (max-width:1120px){
+    .report{width:100%}
+  }
+</style>
+</head>
+<body>
+
+<div class="uploader" id="uploader">
+  <h1><span>Januarius</span> Performance Report Generator</h1>
+  <p>Upload an athlete data <code>.xlsx</code> file. We'll render the performance report and export it as a PDF.</p>
+  <div class="file-row">
+    <div class="file-input-wrap">
+      <input type="file" id="xlsxFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+    </div>
+    <button class="btn" id="previewBtn" disabled>Preview</button>
+    <button class="btn gold" id="pdfBtn" disabled>Download PDF</button>
+  </div>
+  <div class="status" id="status">Awaiting file…</div>
+</div>
+
+
+<div class="stage">
+  <div class="report hidden" id="report">
+
+    <!-- HEADER (full width) -->
+    <div class="r-header">
+      <div class="r-logo"><img src="assets/logo.png" alt="Januarius Performance Center"/></div>
+      <div class="r-title">
+        <div class="h1">ATHLETE PERFORMANCE REPORT</div>
+        <div class="h2" id="athName">—</div>
+        <div class="meta-grid">
+          <div class="meta-row">
+            <span class="item"><b>SPORT:</b><span class="v" id="athSport">—</span></span>
+            <span class="pipe">|</span>
+            <span class="item"><b>SEX:</b><span class="v" id="athSex">—</span></span>
+            <span class="pipe">|</span>
+            <span class="item"><b>AGE:</b><span class="v" id="athAge">—</span></span>
+          </div>
+          <div class="meta-row">
+            <span class="item"><b>HEIGHT:</b><span class="v" id="athHt">—</span></span>
+            <span class="pipe">|</span>
+            <span class="item"><b>WEIGHT:</b><span class="v" id="athWt">—</span></span>
+            <span class="pipe">|</span>
+            <span class="item"><b>TEST DATE:</b><span class="v" id="athDate">—</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="r-blurb">
+        This report provides a comprehensive summary of your performance across key strength, power, and functional movement tests. Use this data to guide training, monitor progress, and reduce injury risk.
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="r-side">
+      <div class="side-h">OVERALL SUMMARY</div>
+      <div class="donut-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="#3a3a3a" stroke-width="5"/>
+          <circle cx="50" cy="50" r="42" fill="none" stroke="#C9A961" stroke-width="5" stroke-dasharray="220 264" stroke-linecap="round" transform="rotate(-90 50 50)"/>
+        </svg>
+        <div class="donut-center">
+          <div class="lab">OVERALL<br/>PROFILE</div>
+          <div class="val" id="profileLabel">STRONG<br/>FOUNDATION</div>
+        </div>
+      </div>
+      <div class="summary-text" id="summaryText">—</div>
+
+      <div class="side-h">KEY STRENGTHS</div>
+      <div class="strength-list" id="strengthList"></div>
+
+      <div class="side-h">AREAS TO IMPROVE</div>
+      <div class="strength-list" id="improveList"></div>
+
+      <div class="quote">
+        <span class="qopen">&ldquo;</span><span id="quoteText">Strength is your foundation. Speed and symmetry will unlock your potential.</span><span class="qclose">&rdquo;</span>
+        <span class="by">— JANUARIUS PERFORMANCE CENTER</span>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="r-main">
+
+      <!-- 1. Lower Body Power -->
+      <div class="section">
+        <div class="section-h"><span class="num">1.</span> LOWER BODY POWER (FORCEDECKS)</div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="ttl">COUNTER MOVEMENT JUMP</div>
+            <div class="sub">Max Jump Height</div>
+            <div class="big" id="cmjValue">— <span class="unit"></span></div>
+            <div class="meta" id="cmjMeta">Average: — | Range: —</div>
+            <div class="gauge">
+              <div class="bar"></div>
+              <div class="marker" id="cmjMarker" style="left:50%"></div>
+              <div class="scale"><span>8</span><span>12</span><span>16</span><span>20+</span></div>
+            </div>
+            <div class="bench">Benchmark: <b id="cmjBench">—</b></div>
+            <div class="illu"><img src="assets/fig_cmj.png" alt=""/></div>
+          </div>
+          <div class="card">
+            <div class="ttl">DROP JUMP</div>
+            <div class="sub">Reactive Strength Index (RSI)</div>
+            <div class="big" id="djValue">—</div>
+            <div class="meta" id="djMeta">Average: — | Range: —</div>
+            <div class="gauge">
+              <div class="bar"></div>
+              <div class="marker" id="djMarker" style="left:20%"></div>
+              <div class="scale"><span>0.5</span><span>1.0</span><span>1.5</span><span>2.0+</span></div>
+            </div>
+            <div class="bench">Benchmark: <b id="djBench">—</b></div>
+            <div class="illu"><img src="assets/fig_dj.png" alt=""/></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. IMTP -->
+      <div class="section">
+        <div class="section-h"><span class="num">2.</span> ISOMETRIC MID-THIGH PULL (IMTP)</div>
+        <div class="grid-3b">
+          <div class="card">
+            <div class="ttl">PEAK VERTICAL FORCE / BODY MASS</div>
+            <div class="big" id="pvfValue">— <span class="unit">N/kg</span></div>
+            <div class="meta">PVF Asymmetry: <span class="grn" id="pvfAsym">—</span></div>
+            <div class="gauge">
+              <div class="bar"></div>
+              <div class="marker" id="pvfMarker" style="left:60%"></div>
+              <div class="scale"><span>12</span><span>16</span><span>20</span><span>24+</span></div>
+            </div>
+            <div class="bench">Benchmark: <b id="pvfBench">—</b></div>
+          </div>
+          <div class="card">
+            <div class="ttl">RATE OF FORCE DEVELOPMENT (RFD) – 200MS</div>
+            <div class="big" id="rfdValue">— <span class="unit">N/s</span></div>
+            <div class="meta">RFD Asymmetry: <span class="red" id="rfdAsym">—</span></div>
+            <div class="gauge">
+              <div class="bar"></div>
+              <div class="marker" id="rfdMarker" style="left:65%"></div>
+              <div class="scale"><span>1,000</span><span>2,000</span><span>3,000</span><span>4,000+</span></div>
+            </div>
+            <div class="bench">Benchmark: <b id="rfdBench">—</b></div>
+          </div>
+          <div class="rfd-card">
+            <div class="ttl">RFD ASYMMETRY</div>
+            <div class="sub">(Left vs Right)</div>
+            <div class="ring">
+              <svg viewBox="0 0 100 100" width="108" height="108">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#EEE" stroke-width="9"/>
+                <circle id="rfdRing" cx="50" cy="50" r="42" fill="none" stroke="#D14B3F" stroke-width="9" stroke-linecap="round" transform="rotate(-90 50 50)"/>
+              </svg>
+              <div class="pct" id="rfdPct">—</div>
+            </div>
+            <div class="lbl" id="rfdLbl">High Asymmetry</div>
+            <div class="tg">Target: &lt;10%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Upper Body Strength -->
+      <div class="section">
+        <div class="section-h"><span class="num">3.</span> UPPER BODY STRENGTH (SHOULDER)</div>
+        <div class="grid-3b">
+          <div class="card">
+            <div class="ttl">INTERNAL ROTATION</div>
+            <div class="chart-meta">
+              Max Force: <b id="irMax">—</b> | Avg <b id="irAvg">—</b><br/>
+              Asymmetry: <span class="red" id="irAsymL">—</span> | <span class="red" id="irAsymR">—</span>
+            </div>
+            <div class="barchart-wrap">
+              <div class="axis-line"><span>(N) 150</span><span>100</span><span>50</span><span>0</span></div>
+              <div class="barchart amber">
+                <div class="bc-col"><div class="bc-bar" id="irLBar"><span id="irLVal">—</span></div><div class="bc-lab">Left</div></div>
+                <div class="bc-col"><div class="bc-bar" id="irRBar"><span id="irRVal">—</span></div><div class="bc-lab">Right</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ttl">EXTERNAL ROTATION</div>
+            <div class="chart-meta">
+              Max Force: <b id="erMax">—</b> | Avg <b id="erAvg">—</b><br/>
+              Asymmetry: <span class="grn" id="erAsymL">—</span> | <span class="grn" id="erAsymR">—</span>
+            </div>
+            <div class="barchart-wrap">
+              <div class="axis-line"><span>150</span><span>100</span><span>50</span><span>0</span></div>
+              <div class="barchart green">
+                <div class="bc-col"><div class="bc-bar" id="erLBar"><span id="erLVal">—</span></div><div class="bc-lab">Left</div></div>
+                <div class="bc-col"><div class="bc-bar" id="erRBar"><span id="erRVal">—</span></div><div class="bc-lab">Right</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="takeaway">
+            <div class="ic"><img src="assets/tk_shoulder.png" alt=""/></div>
+            <div class="ttl">SHOULDER TAKEAWAY</div>
+            <div class="body" id="shoulderTakeaway">Good external rotation symmetry and strength. Slight imbalance in internal rotation.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Hip Strength -->
+      <div class="section">
+        <div class="section-h"><span class="num">4.</span> HIP STRENGTH (ADDUCTION / ABDUCTION)</div>
+        <div class="grid-3b">
+          <div class="card">
+            <div class="ttl">ADDUCTION</div>
+            <div class="chart-meta">
+              Max: <b id="adMax">—</b> | Avg: <b id="adAvg">—</b><br/>
+              Asymmetry: <span class="grn" id="adAsym">—</span>
+            </div>
+            <div class="barchart-wrap">
+              <div class="axis-line"><span>(N) 300</span><span>200</span><span>100</span><span>0</span></div>
+              <div class="barchart amber">
+                <div class="bc-col"><div class="bc-bar" id="adLBar"><span id="adLVal">—</span></div><div class="bc-lab">Left</div></div>
+                <div class="bc-col"><div class="bc-bar" id="adRBar"><span id="adRVal">—</span></div><div class="bc-lab">Right</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ttl">ABDUCTION</div>
+            <div class="chart-meta">
+              Max: <b id="abMax">—</b> | Avg: <b id="abAvg">—</b><br/>
+              Asymmetry: <span class="grn" id="abAsym">—</span>
+            </div>
+            <div class="barchart-wrap">
+              <div class="axis-line"><span>300</span><span>200</span><span>100</span><span>0</span></div>
+              <div class="barchart green">
+                <div class="bc-col"><div class="bc-bar" id="abLBar"><span id="abLVal">—</span></div><div class="bc-lab">Left</div></div>
+                <div class="bc-col"><div class="bc-bar" id="abRBar"><span id="abRVal">—</span></div><div class="bc-lab">Right</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="takeaway">
+            <div class="ic"><img src="assets/tk_hip.png" alt=""/></div>
+            <div class="ttl">HIP TAKEAWAY</div>
+            <div class="body" id="hipTakeaway">Excellent hip strength and symmetry. Supports stability and power in the golf swing.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Hand Grip — full width row -->
+    <div class="r-grip">
+      <div class="section-h"><span class="num">5.</span> HAND GRIP (NEUTRAL)</div>
+      <div class="grip-row">
+        <div class="grip-cell">
+          <div class="ic"><img src="assets/gr_force.png" alt=""/></div>
+          <div class="h">MAX FORCE</div>
+          <div class="v"><span id="gripMax">—</span><span class="unit">N</span><span class="side" id="gripMaxSide"></span></div>
+          <div class="m" id="gripMaxRange">Range: —<br/>Avg: —</div>
+        </div>
+        <div class="grip-cell">
+          <div class="ic"><img src="assets/gr_impulse.png" alt=""/></div>
+          <div class="h">IMPULSE</div>
+          <div class="v"><span id="gripImp">—</span><span class="unit">N·s</span></div>
+          <div class="m" id="gripImpRange">Range: —<br/>Avg: —</div>
+        </div>
+        <div class="grip-cell">
+          <div class="ic"><img src="assets/gr_rfd.png" alt=""/></div>
+          <div class="h">MAX RFD</div>
+          <div class="v"><span id="gripRfd">—</span><span class="unit">N/s</span><span class="side" id="gripRfdSide"></span></div>
+          <div class="m" id="gripRfdRange">Range: —<br/>Avg: —</div>
+        </div>
+        <div class="grip-cell">
+          <div class="ic"><img src="assets/gr_ttp.png" alt=""/></div>
+          <div class="h">TIME TO PEAK</div>
+          <div class="v"><span id="gripTtp">—</span><span class="unit">s</span><span class="side" id="gripTtpSide">(Avg)</span></div>
+          <div class="m" id="gripTtpRange">Range: —<br/>Avg: —</div>
+        </div>
+        <div class="grip-take">
+          <div class="ic"><img src="assets/tk_grip.png" alt=""/></div>
+          <div class="ttl">GRIP TAKEAWAY</div>
+          <div class="body" id="gripTakeaway">Right side shows higher explosiveness (RFD). Work on improving left side speed and balance.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="r-footer">
+      <div class="left"><img src="assets/footer_logo.png" alt=""/> JANUARIUS PERFORMANCE CENTER</div>
+      <div class="center">TEST SMART. TRAIN INTELLIGENT. PERFORM BETTER.</div>
+      <div class="right">DATA DRIVEN. RESULTS FOCUSED.</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const fileInput = $('xlsxFile');
+  const previewBtn = $('previewBtn');
+  const pdfBtn = $('pdfBtn');
+  const status = $('status');
+  const report = $('report');
+
+  let parsedData = null;
+  let athleteName = 'Athlete';
+
+  fileInput.addEventListener('change', handleFile);
+  previewBtn.addEventListener('click', () => {
+    if (!parsedData) return;
+    populate(parsedData);
+    report.classList.remove('hidden');
+    report.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+  pdfBtn.addEventListener('click', exportPDF);
+
+  function setStatus(msg, kind){
+    status.textContent = msg;
+    status.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function handleFile(e){
+    const f = e.target.files[0];
+    if(!f){ return; }
+    setStatus('Reading ' + f.name + '…');
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
+        parsedData = parseWorkbook(wb);
+        previewBtn.disabled = false;
+        pdfBtn.disabled = false;
+        populate(parsedData);
+        report.classList.remove('hidden');
+        setStatus('Loaded. Preview below — click "Download PDF" when ready.', 'ok');
+      } catch(err){
+        console.error(err);
+        setStatus('Could not parse this file: ' + err.message, 'error');
+      }
+    };
+    r.onerror = () => setStatus('Could not read file.', 'error');
+    r.readAsArrayBuffer(f);
+  }
+
+  function parseWorkbook(wb){
+    const get = name => wb.Sheets[name] ? XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, defval:''}) : [];
+    const summary = get('Summary');
+    const lbp = get('1. Lower Body Power');
+    const imtp = get('2. IMTP');
+    const sho = get('3. Upper Body Shoulder');
+    const hip = get('4. Hip Strength');
+    const grip = get('5. Hand Grip');
+
+    const sFind = (label) => {
+      for (const row of summary){
+        if(String(row[0] || '').trim().toLowerCase() === label.toLowerCase()) return row[1];
+      }
+      return '';
+    };
+
+    // Athlete name lives at row 2 col A in the summary sheet (the merged title)
+    const athleteName = (() => {
+      for (const row of summary){
+        const v = String(row[0]||'').trim();
+        if (v && v !== 'ATHLETE PERFORMANCE REPORT' && v.toUpperCase() === v && v.length > 6 && !v.includes('SUMMARY') && !v.includes('STRENGTHS') && !v.includes('IMPROVE') && !v.includes('INFO') && !v.includes('AREAS')){
+          return v;
+        }
+      }
+      return 'Athlete';
+    })();
+
+    const sSection = (header, stopWords) => {
+      const stops = new Set(stopWords.map(s=>s.toLowerCase()));
+      const items = [];
+      let inSection = false;
+      for (const row of summary){
+        const cell = String(row[0]||'').trim();
+        if (!inSection){
+          if (cell.toLowerCase() === header.toLowerCase()) inSection = true;
+          continue;
+        }
+        if (!cell) continue;
+        if (stops.has(cell.toLowerCase())) break;
+        if (cell.startsWith('•')) items.push(cell.replace(/^•\s*/,'').trim());
+      }
+      return items;
+    };
+
+    const summaryText = (() => {
+      let inSection = false;
+      for (const row of summary){
+        const cell = String(row[0]||'').trim();
+        if (!inSection){
+          if (cell.toLowerCase() === 'overall summary') inSection = true;
+          continue;
+        }
+        if (cell && cell.toLowerCase() !== 'key strengths' && cell.toLowerCase() !== 'overall summary'){
+          if (!cell.startsWith('•')) return cell;
+        }
+      }
+      return '';
+    })();
+
+    const quote = (() => {
+      for (const row of summary){
+        if (String(row[0]||'').trim().toLowerCase() === 'quote'){
+          return String(row[1]||'').replace(/^"|"$/g,'').replace(/^"|"$/g,'').replace(/\s*—\s*Januarius Performance Center\s*$/i,'').trim();
+        }
+      }
+      return '';
+    })();
+
+    const findRow = (rows, label) => rows.find(r => String(r[0]||'').trim().toLowerCase() === label.toLowerCase());
+
+    return {
+      athlete: {
+        name: athleteName,
+        sport: sFind('Sport'),
+        sex: sFind('Sex'),
+        age: sFind('Age'),
+        height: sFind('Height'),
+        weight: sFind('Weight'),
+        date: sFind('Test Date'),
+        profile: sFind('Overall Profile')
+      },
+      summaryText,
+      strengths: sSection('KEY STRENGTHS', ['AREAS TO IMPROVE','Quote']),
+      improve: sSection('AREAS TO IMPROVE', ['Quote']),
+      quote,
+      cmj: findRow(lbp, 'Counter Movement Jump'),
+      dj: findRow(lbp, 'Drop Jump'),
+      pvf: findRow(imtp, 'Peak Vertical Force / Body Mass'),
+      rfd: findRow(imtp, 'Rate of Force Development (RFD) – 200ms'),
+      rfdAsym: findRow(imtp, 'RFD Asymmetry (Left vs Right)'),
+      ir: findRow(sho, 'Internal Rotation'),
+      er: findRow(sho, 'External Rotation'),
+      adduction: findRow(hip, 'Adduction'),
+      abduction: findRow(hip, 'Abduction'),
+      gripMax: findRow(grip, 'Max Force'),
+      gripImp: findRow(grip, 'Impulse'),
+      gripRfd: findRow(grip, 'Max RFD'),
+      gripTtp: findRow(grip, 'Time to Peak')
+    };
+  }
+
+  function firstNum(s){
+    if (s === undefined || s === null) return null;
+    if (typeof s === 'number') return s;
+    const m = String(s).replace(/,/g,'').match(/-?\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : null;
+  }
+  function gaugePct(v, min, max){
+    if (v === null || v === undefined) return 50;
+    const p = ((v - min) / (max - min)) * 100;
+    return Math.max(0, Math.min(100, p));
+  }
+
+  function populate(d){
+    const a = d.athlete;
+    athleteName = (a.name || 'Athlete').toString();
+    $('athName').textContent = athleteName.toUpperCase();
+    $('athSport').textContent = a.sport || '—';
+    $('athSex').textContent = a.sex || '—';
+    $('athAge').textContent = a.age || 'N/A';
+    $('athHt').textContent = a.height || '—';
+    $('athWt').textContent = a.weight || '—';
+    $('athDate').textContent = a.date || 'N/A';
+    $('profileLabel').innerHTML = (a.profile || 'STRONG FOUNDATION').toString().toUpperCase().replace(/\s+/g,'<br/>');
+    $('summaryText').textContent = d.summaryText || '';
+    $('quoteText').textContent = d.quote || '';
+
+    // Strengths and Improve lists — use cropped icon assets
+    const strengthIcons = ['assets/str1.png','assets/str2.png','assets/str3.png'];
+    const improveIcons  = ['assets/imp1.png','assets/imp2.png','assets/imp3.png'];
+    const renderList = (containerId, items, icons) => {
+      const c = $(containerId);
+      c.innerHTML = '';
+      items.forEach((it, i) => {
+        const src = icons[i % icons.length];
+        const div = document.createElement('div');
+        div.className = 'si';
+        div.innerHTML = `<div class="ic"><img src="${src}" alt=""/></div><div>${it}</div>`;
+        c.appendChild(div);
+      });
+    };
+    renderList('strengthList', d.strengths, strengthIcons);
+    renderList('improveList', d.improve, improveIcons);
+
+    // 1. CMJ — value like "13.4 in (34 cm)"
+    if (d.cmj){
+      const v = String(d.cmj[2]||'');
+      const num = firstNum(v);
+      const m = v.match(/\(([^)]+)\)/);
+      $('cmjValue').innerHTML = (num !== null ? num.toFixed(1) : '—') + ' <span class="unit">in' + (m ? ' ('+m[1]+')' : '') + '</span>';
+      $('cmjMeta').textContent = String(d.cmj[3]||'').replace(/\s*\|\s*/g,' | ');
+      $('cmjBench').textContent = d.cmj[4] || '—';
+      $('cmjMarker').style.left = gaugePct(num, 8, 20) + '%';
+    }
+
+    // 1. Drop Jump
+    if (d.dj){
+      const num = firstNum(d.dj[2]);
+      $('djValue').textContent = num !== null ? num.toFixed(2) : '—';
+      $('djMeta').textContent = String(d.dj[3]||'').replace(/\s*\|\s*/g,' | ');
+      $('djBench').textContent = d.dj[4] || '—';
+      $('djMarker').style.left = gaugePct(num, 0.5, 2.0) + '%';
+    }
+
+    // 2. PVF
+    if (d.pvf){
+      const num = firstNum(d.pvf[1]);
+      $('pvfValue').innerHTML = (num !== null ? num.toFixed(1) : '—') + ' <span class="unit">N/kg</span>';
+      $('pvfAsym').textContent = String(d.pvf[2]||'').replace(/^PVF Asymmetry:\s*/i,'');
+      $('pvfBench').textContent = d.pvf[3] || '—';
+      $('pvfMarker').style.left = gaugePct(num, 12, 24) + '%';
+    }
+
+    // 2. RFD
+    if (d.rfd){
+      const num = firstNum(d.rfd[1]);
+      $('rfdValue').innerHTML = (num !== null ? num.toLocaleString() : '—') + ' <span class="unit">N/s</span>';
+      $('rfdAsym').textContent = String(d.rfd[2]||'').replace(/^RFD Asymmetry:\s*/i,'');
+      $('rfdBench').textContent = d.rfd[3] || '—';
+      $('rfdMarker').style.left = gaugePct(num, 1000, 4000) + '%';
+    }
+
+    // 2. RFD Asymmetry donut
+    if (d.rfdAsym){
+      const pct = firstNum(d.rfdAsym[1]) || 0;
+      $('rfdPct').textContent = pct + '%';
+      const C = 2 * Math.PI * 42;
+      const dash = (pct/100) * C;
+      const ring = document.getElementById('rfdRing');
+      ring.setAttribute('stroke-dasharray', dash + ' ' + (C - dash));
+      const high = pct >= 10;
+      $('rfdLbl').textContent = high ? 'High Asymmetry' : 'Within Target';
+      $('rfdLbl').style.color = high ? 'var(--red)' : 'var(--green-dark)';
+      ring.setAttribute('stroke', high ? '#D14B3F' : '#2E7D32');
+      $('rfdPct').style.color = high ? 'var(--red)' : 'var(--green-dark)';
+    }
+
+    // Bar chart helper
+    const setBars = (LId, RId, LValId, RValId, L, R, scaleMax) => {
+      const lh = (L/scaleMax*100); const rh = (R/scaleMax*100);
+      $(LId).style.height = lh + '%';
+      $(RId).style.height = rh + '%';
+      $(LValId).textContent = L; $(RValId).textContent = R;
+    };
+
+    if (d.ir){
+      $('irMax').textContent = d.ir[1] + ' N';
+      $('irAvg').textContent = d.ir[2] + ' N';
+      const am = String(d.ir[5]||'').split('|').map(s=>s.trim());
+      $('irAsymL').textContent = am[0] || '—';
+      $('irAsymR').textContent = am[1] || '—';
+      setBars('irLBar','irRBar','irLVal','irRVal', +d.ir[3]||0, +d.ir[4]||0, 150);
+    }
+    if (d.er){
+      $('erMax').textContent = d.er[1] + ' N';
+      $('erAvg').textContent = d.er[2] + ' N';
+      const am = String(d.er[5]||'').split('|').map(s=>s.trim());
+      $('erAsymL').textContent = am[0] || '—';
+      $('erAsymR').textContent = am[1] || '—';
+      setBars('erLBar','erRBar','erLVal','erRVal', +d.er[3]||0, +d.er[4]||0, 150);
+    }
+    if (d.adduction){
+      $('adMax').textContent = d.adduction[1] + ' N';
+      $('adAvg').textContent = d.adduction[2] + ' N';
+      $('adAsym').textContent = d.adduction[5] || '—';
+      setBars('adLBar','adRBar','adLVal','adRVal', +d.adduction[3]||0, +d.adduction[4]||0, 300);
+    }
+    if (d.abduction){
+      $('abMax').textContent = d.abduction[1] + ' N';
+      $('abAvg').textContent = d.abduction[2] + ' N';
+      $('abAsym').textContent = d.abduction[5] || '—';
+      setBars('abLBar','abRBar','abLVal','abRVal', +d.abduction[3]||0, +d.abduction[4]||0, 300);
+    }
+
+    // 5. Hand Grip
+    const setGrip = (rowKey, valId, sideId, rangeId) => {
+      const row = d[rowKey];
+      if (!row) return;
+      const v = firstNum(row[1]);
+      $(valId).textContent = (v !== null ? v.toLocaleString(undefined,{maximumFractionDigits:3}) : '—');
+      if (sideId) $(sideId).textContent = row[2] && row[2] !== '—' ? '('+row[2]+')' : '';
+      $(rangeId).innerHTML = 'Range: ' + (row[3]||'—') + '<br/>Avg: ' + (row[4]||'—');
+    };
+    setGrip('gripMax','gripMax','gripMaxSide','gripMaxRange');
+    setGrip('gripImp','gripImp',null,'gripImpRange');
+    setGrip('gripRfd','gripRfd','gripRfdSide','gripRfdRange');
+    setGrip('gripTtp','gripTtp','gripTtpSide','gripTtpRange');
+  }
+
+  async function exportPDF(){
+    if (!parsedData) return;
+    setStatus('Rendering report to PDF…');
+    pdfBtn.disabled = true;
+    try {
+      const el = document.getElementById('report');
+      const canvas = await html2canvas(el, {scale: 2, useCORS: true, backgroundColor: '#ffffff'});
+      const img = canvas.toDataURL('image/jpeg', 0.94);
+      const { jsPDF } = window.jspdf;
+      const wPx = canvas.width, hPx = canvas.height;
+      const wMm = 280;
+      const hMm = wMm * (hPx / wPx);
+      const pdf = new jsPDF({orientation: hMm > wMm ? 'p' : 'l', unit: 'mm', format: [wMm, hMm]});
+      pdf.addImage(img, 'JPEG', 0, 0, wMm, hMm, undefined, 'FAST');
+      const fname = (athleteName.replace(/[^a-z0-9]+/gi,'_') || 'Athlete') + '_Performance_Report.pdf';
+      pdf.save(fname);
+      setStatus('Saved ' + fname, 'ok');
+    } catch(err){
+      console.error(err);
+      setStatus('Failed to render PDF: ' + err.message, 'error');
+    } finally {
+      pdfBtn.disabled = false;
+    }
+  }
+})();
+</script>
+
+</body>
+</html>
