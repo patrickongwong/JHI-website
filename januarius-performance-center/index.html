@@ -861,6 +861,88 @@
           width: 100%;
         }
       }
+
+      /* ---- Inline editing (CSV path) ---- */
+      #editBanner {
+        display: none;
+        max-width: 1080px;
+        margin: 16px auto 0;
+        padding: 10px 16px;
+        background: #fff8e6;
+        border: 1px solid var(--gold);
+        border-radius: 8px;
+        color: var(--text-dark);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      #editBanner.on {
+        display: block;
+      }
+      #editBanner b {
+        color: var(--black);
+      }
+      .editable {
+        outline: none;
+        border-bottom: 1px dashed var(--gold);
+        cursor: text;
+        transition: background 0.12s ease;
+        min-width: 12px;
+        display: inline-block;
+      }
+      .editable.block {
+        display: block;
+      }
+      .editable:hover {
+        background: rgba(201, 169, 97, 0.12);
+      }
+      .editable:focus {
+        background: rgba(201, 169, 97, 0.18);
+      }
+      .editable[data-placeholder]:empty:before {
+        content: attr(data-placeholder);
+        color: #999;
+        font-style: italic;
+        font-weight: 400;
+        white-space: pre-line;
+      }
+      .editable[data-placeholder]:focus:empty:before {
+        opacity: 0.5;
+      }
+      /* dark sidebar editable contrast */
+      .r-side .editable {
+        border-bottom-color: var(--gold-2);
+      }
+      .r-side .editable:hover {
+        background: rgba(224, 194, 119, 0.16);
+      }
+      .r-side .editable[data-placeholder]:empty:before {
+        color: #888;
+      }
+      /* dark takeaway editable contrast */
+      .takeaway .editable,
+      .grip-take .editable {
+        border-bottom-color: var(--gold-2);
+      }
+      .takeaway .editable[data-placeholder]:empty:before,
+      .grip-take .editable[data-placeholder]:empty:before {
+        color: #888;
+      }
+
+      /* Export-time overrides — strip editing chrome and hide empty containers */
+      body.exporting #editBanner {
+        display: none !important;
+      }
+      body.exporting .editable {
+        border-bottom: 0 !important;
+        background: transparent !important;
+        cursor: default !important;
+      }
+      body.exporting .editable[data-placeholder]:empty:before {
+        content: '' !important;
+      }
+      body.exporting .hide-export {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
@@ -882,6 +964,12 @@
         <button class="btn gold" id="pdfBtn" disabled>Download PDF</button>
       </div>
       <div class="status" id="status">Awaiting file…</div>
+    </div>
+
+    <div id="editBanner">
+      <b>Manual entry mode.</b> Click any
+      <span style="border-bottom: 1px dashed var(--gold)">underlined</span>
+      field to edit. Empty fields and unfilled bullets are hidden in the PDF.
     </div>
 
     <div class="stage">
@@ -1286,11 +1374,14 @@
 
         let parsedData = null
         let athleteName = 'Athlete'
+        let csvMode = false
+        const banner = document.getElementById('editBanner')
 
         fileInput.addEventListener('change', handleFile)
         previewBtn.addEventListener('click', () => {
           if (!parsedData) return
           populate(parsedData)
+          if (csvMode) enableInlineEditing()
           report.classList.remove('hidden')
           report.scrollIntoView({ behavior: 'smooth', block: 'start' })
         })
@@ -1308,6 +1399,7 @@
           }
           setStatus('Reading ' + f.name + '…')
           const isCSV = /\.csv$/i.test(f.name) || f.type === 'text/csv'
+          csvMode = isCSV
           const r = new FileReader()
           r.onload = (ev) => {
             try {
@@ -1324,9 +1416,12 @@
               previewBtn.disabled = false
               pdfBtn.disabled = false
               populate(parsedData)
+              if (isCSV) enableInlineEditing()
               report.classList.remove('hidden')
               setStatus(
-                'Loaded. Preview below — click "Download PDF" when ready.',
+                isCSV
+                  ? 'Loaded. Fill in any missing fields above, then click "Download PDF".'
+                  : 'Loaded. Preview below — click "Download PDF" when ready.',
                 'ok',
               )
             } catch (err) {
@@ -1690,6 +1785,265 @@
             gripTtp,
           }
         }
+        // ---- Inline editing helpers (CSV path only) ----
+
+        // Containers that should disappear in the PDF if their editable child is empty.
+        // selector → ancestor selector to hide.
+        const HIDE_EMPTY_RULES = [
+          { sel: '#summaryText', up: '#summaryText' },
+          { sel: '#quoteText', up: '.r-side .quote' },
+          { sel: '#shoulderTakeaway', up: '.r-main .takeaway' },
+          { sel: '#hipTakeaway', up: '.r-main .takeaway' },
+          { sel: '#gripTakeaway', up: '.grip-take' },
+        ]
+
+        function isElementBlank(el) {
+          if (!el) return true
+          return !el.textContent.replace(/ /g, '').trim()
+        }
+
+        function makeEditable(el, placeholder, opts) {
+          if (!el) return
+          opts = opts || {}
+          el.contentEditable = 'true'
+          el.classList.add('editable')
+          if (opts.block) el.classList.add('block')
+          if (placeholder) el.dataset.placeholder = placeholder
+          // Plain-text paste only.
+          el.addEventListener('paste', (ev) => {
+            ev.preventDefault()
+            const txt = (ev.clipboardData || window.clipboardData).getData(
+              'text',
+            )
+            document.execCommand('insertText', false, txt)
+          })
+          // Normalize empty (strip stray <br>/&nbsp; so :empty matches placeholder).
+          el.addEventListener('blur', () => {
+            if (isElementBlank(el)) el.innerHTML = ''
+          })
+        }
+
+        function enableInlineEditing() {
+          if (!banner) return
+          banner.classList.add('on')
+
+          // --- Header (Age, Test Date)
+          const ageEl = document.getElementById('athAge')
+          if (ageEl) {
+            ageEl.textContent =
+              ageEl.textContent.trim() === 'N/A' ? '' : ageEl.textContent.trim()
+            makeEditable(ageEl, 'Add age')
+          }
+          const dateEl = document.getElementById('athDate')
+          if (dateEl) {
+            dateEl.textContent =
+              dateEl.textContent.trim() === 'N/A'
+                ? ''
+                : dateEl.textContent.trim()
+            makeEditable(dateEl, 'Add test date')
+          }
+
+          // --- Profile label (donut center)
+          const profEl = document.getElementById('profileLabel')
+          if (profEl) {
+            profEl.innerHTML = ''
+            profEl.style.whiteSpace = 'pre-line'
+            makeEditable(profEl, 'OVERALL\nPROFILE', { block: true })
+          }
+
+          // --- Summary text
+          const sumEl = document.getElementById('summaryText')
+          if (sumEl) {
+            sumEl.style.display = ''
+            if (isElementBlank(sumEl)) sumEl.textContent = ''
+            makeEditable(sumEl, 'Add an overall summary…', { block: true })
+          }
+
+          // --- Quote
+          const quoteBox = document.querySelector('.r-side .quote')
+          if (quoteBox) quoteBox.style.display = ''
+          const quoteEl = document.getElementById('quoteText')
+          if (quoteEl) {
+            if (isElementBlank(quoteEl)) quoteEl.textContent = ''
+            makeEditable(quoteEl, 'Add a quote…')
+          }
+
+          // --- Strengths / Improve: pre-render 3 editable slots each
+          const strengthIcons = [
+            'assets/str1.png',
+            'assets/str2.png',
+            'assets/str3.png',
+          ]
+          const improveIcons = [
+            'assets/imp1.png',
+            'assets/imp2.png',
+            'assets/imp3.png',
+          ]
+          const renderEditableSlots = (containerId, icons, placeholder) => {
+            const c = document.getElementById(containerId)
+            if (!c) return
+            c.innerHTML = ''
+            c.style.display = ''
+            const header = c.previousElementSibling
+            if (header && header.classList.contains('side-h'))
+              header.style.display = ''
+            for (let i = 0; i < 3; i++) {
+              const row = document.createElement('div')
+              row.className = 'si'
+              row.innerHTML =
+                '<div class="ic"><img src="' +
+                icons[i] +
+                '" alt=""/></div><div></div>'
+              const txt = row.lastElementChild
+              makeEditable(txt, placeholder, { block: true })
+              c.appendChild(row)
+            }
+          }
+          renderEditableSlots(
+            'strengthList',
+            strengthIcons,
+            'Add a strength…',
+          )
+          renderEditableSlots(
+            'improveList',
+            improveIcons,
+            'Add an area to improve…',
+          )
+
+          // --- Benchmarks
+          ;['cmjBench', 'djBench', 'pvfBench', 'rfdBench'].forEach((id) => {
+            const el = document.getElementById(id)
+            if (!el) return
+            if (el.textContent.trim() === '—') el.textContent = ''
+            makeEditable(el, 'Set benchmark…')
+          })
+
+          // --- Section takeaways
+          ;['shoulderTakeaway', 'hipTakeaway', 'gripTakeaway'].forEach((id) => {
+            const el = document.getElementById(id)
+            if (!el) return
+            // Replace the default English filler with empty placeholder.
+            el.textContent = ''
+            makeEditable(el, 'Add takeaway…', { block: true })
+          })
+
+          // --- IMTP RFD value (the missing N/s)
+          const rfdValEl = document.getElementById('rfdValue')
+          if (rfdValEl) {
+            rfdValEl.innerHTML =
+              '<span id="rfdValueNum"></span> <span class="unit">N/s</span>'
+            const numEl = document.getElementById('rfdValueNum')
+            makeEditable(numEl, '—')
+          }
+
+          // --- Grip Impulse / Max RFD value + side
+          const gripImpEl = document.getElementById('gripImp')
+          if (gripImpEl) {
+            if (gripImpEl.textContent.trim() === '—') gripImpEl.textContent = ''
+            makeEditable(gripImpEl, '—')
+          }
+          const gripImpRangeEl = document.getElementById('gripImpRange')
+          if (gripImpRangeEl) restructureRange(gripImpRangeEl)
+
+          const gripRfdEl = document.getElementById('gripRfd')
+          if (gripRfdEl) {
+            if (gripRfdEl.textContent.trim() === '—') gripRfdEl.textContent = ''
+            makeEditable(gripRfdEl, '—')
+          }
+          const gripRfdSideEl = document.getElementById('gripRfdSide')
+          if (gripRfdSideEl) {
+            if (!gripRfdSideEl.textContent.trim()) gripRfdSideEl.textContent = ''
+            makeEditable(gripRfdSideEl, '(L/R)')
+          }
+          const gripRfdRangeEl = document.getElementById('gripRfdRange')
+          if (gripRfdRangeEl) restructureRange(gripRfdRangeEl)
+
+          // --- Asymmetry overrides
+          const pvfAsymEl = document.getElementById('pvfAsym')
+          if (pvfAsymEl) makeEditable(pvfAsymEl, '—')
+          const rfdPctEl = document.getElementById('rfdPct')
+          if (rfdPctEl) {
+            makeEditable(rfdPctEl, '—')
+            rfdPctEl.addEventListener('input', () => {
+              const num = firstNum(rfdPctEl.textContent)
+              if (num === null) return
+              const pct = Math.max(0, Math.min(100, num))
+              const high = pct >= 10
+              const lblEl = document.getElementById('rfdLbl')
+              if (lblEl) {
+                lblEl.textContent = high ? 'High Asymmetry' : 'Within Target'
+                lblEl.style.color = high ? 'var(--red)' : 'var(--green-dark)'
+              }
+              rfdPctEl.style.color = high ? 'var(--red)' : 'var(--green-dark)'
+              drawRing(
+                document.getElementById('rfdRing'),
+                pct / 100,
+                high ? '#D14B3F' : '#2E7D32',
+                '#EEEEEE',
+                9 / 100,
+              )
+            })
+          }
+        }
+
+        function restructureRange(el) {
+          // Replace "Range: X<br/>Avg: Y" with two editable inline spans.
+          const txt = el.textContent || ''
+          const rangeMatch = txt.match(/Range:\s*([^\n]*?)\s*(?:Avg:|$)/i)
+          const avgMatch = txt.match(/Avg:\s*(.*)$/i)
+          let rangeVal = (rangeMatch && rangeMatch[1].trim()) || ''
+          let avgVal = (avgMatch && avgMatch[1].trim()) || ''
+          if (rangeVal === '—') rangeVal = ''
+          if (avgVal === '—') avgVal = ''
+          el.innerHTML =
+            'Range: <span class="rng"></span><br/>Avg: <span class="avg"></span>'
+          const rngEl = el.querySelector('.rng')
+          const avgEl = el.querySelector('.avg')
+          rngEl.textContent = rangeVal
+          avgEl.textContent = avgVal
+          makeEditable(rngEl, '—')
+          makeEditable(avgEl, '—')
+        }
+
+        function markEmptyContainersForExport() {
+          HIDE_EMPTY_RULES.forEach(({ sel, up }) => {
+            const el = document.querySelector(sel)
+            if (el && isElementBlank(el)) {
+              const target = el.closest(up) || document.querySelector(up)
+              if (target) target.classList.add('hide-export')
+            }
+          })
+          // Empty .si rows in strength/improve lists.
+          document.querySelectorAll('#strengthList .si, #improveList .si').forEach((row) => {
+            const txt = row.querySelector('.editable, div:last-child')
+            if (isElementBlank(txt)) row.classList.add('hide-export')
+          })
+          // Hide section header if all .si rows are empty.
+          ;[
+            ['strengthList', 'KEY STRENGTHS'],
+            ['improveList', 'AREAS TO IMPROVE'],
+          ].forEach(([id]) => {
+            const list = document.getElementById(id)
+            if (!list) return
+            const rows = list.querySelectorAll('.si')
+            const anyFilled = Array.from(rows).some(
+              (r) => !r.classList.contains('hide-export'),
+            )
+            if (!anyFilled) {
+              list.classList.add('hide-export')
+              const header = list.previousElementSibling
+              if (header && header.classList.contains('side-h'))
+                header.classList.add('hide-export')
+            }
+          })
+        }
+
+        function unmarkEmptyContainersForExport() {
+          document
+            .querySelectorAll('.hide-export')
+            .forEach((el) => el.classList.remove('hide-export'))
+        }
+
         function gaugePct(v, min, max) {
           if (v === null || v === undefined) return 50
           const p = ((v - min) / (max - min)) * 100
@@ -1959,6 +2313,8 @@
           const el = document.getElementById('report')
           const prevShadow = el.style.boxShadow
           el.style.boxShadow = 'none'
+          markEmptyContainersForExport()
+          document.body.classList.add('exporting')
           try {
             if (document.fonts && document.fonts.ready) {
               await document.fonts.ready
@@ -2015,6 +2371,8 @@
             setStatus('Failed to render PDF: ' + err.message, 'error')
           } finally {
             el.style.boxShadow = prevShadow
+            document.body.classList.remove('exporting')
+            unmarkEmptyContainersForExport()
             pdfBtn.disabled = false
           }
         }
