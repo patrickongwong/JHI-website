@@ -867,15 +867,15 @@
     <div class="uploader" id="uploader">
       <h1><span>Januarius</span> Performance Report Generator</h1>
       <p>
-        Upload an athlete data <code>.xlsx</code> file. We'll render the
-        performance report and export it as a PDF.
+        Upload an athlete data <code>.xlsx</code> or <code>.csv</code> file.
+        We'll render the performance report and export it as a PDF.
       </p>
       <div class="file-row">
         <div class="file-input-wrap">
           <input
             type="file"
             id="xlsxFile"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
           />
         </div>
         <button class="btn" id="previewBtn" disabled>Preview</button>
@@ -1307,13 +1307,20 @@
             return
           }
           setStatus('Reading ' + f.name + '…')
+          const isCSV = /\.csv$/i.test(f.name) || f.type === 'text/csv'
           const r = new FileReader()
           r.onload = (ev) => {
             try {
-              const wb = XLSX.read(new Uint8Array(ev.target.result), {
-                type: 'array',
-              })
-              parsedData = parseWorkbook(wb)
+              let wb
+              if (isCSV) {
+                wb = XLSX.read(ev.target.result, { type: 'string' })
+                parsedData = parseCSV(wb)
+              } else {
+                wb = XLSX.read(new Uint8Array(ev.target.result), {
+                  type: 'array',
+                })
+                parsedData = parseWorkbook(wb)
+              }
               previewBtn.disabled = false
               pdfBtn.disabled = false
               populate(parsedData)
@@ -1328,7 +1335,11 @@
             }
           }
           r.onerror = () => setStatus('Could not read file.', 'error')
-          r.readAsArrayBuffer(f)
+          if (isCSV) {
+            r.readAsText(f)
+          } else {
+            r.readAsArrayBuffer(f)
+          }
         }
 
         function parseWorkbook(wb) {
@@ -1481,6 +1492,204 @@
             .match(/-?\d+(\.\d+)?/)
           return m ? parseFloat(m[0]) : null
         }
+
+        function parseCSV(wb) {
+          const sheet = wb.Sheets[wb.SheetNames[0]]
+          const rows = XLSX.utils.sheet_to_json(sheet, {
+            header: 1,
+            defval: '',
+          })
+          // Find first data row — column 2 is athlete name; sub-header has "Name"
+          let dataRow = null
+          for (let i = 1; i < rows.length; i++) {
+            const v = String((rows[i] || [])[2] || '').trim()
+            if (v && v.toLowerCase() !== 'name') {
+              dataRow = rows[i]
+              break
+            }
+          }
+          if (!dataRow) throw new Error('No athlete data row found in CSV')
+          const get = (i) =>
+            String(
+              dataRow[i] !== undefined && dataRow[i] !== null ? dataRow[i] : '',
+            ).trim()
+
+          const parseRange = (str) => {
+            if (!str) return null
+            const lr = String(str).match(
+              /(-?\d+(?:\.\d+)?)\s*\(([LR])\)[^-]*-\s*(-?\d+(?:\.\d+)?)\s*\(([LR])\)/i,
+            )
+            if (lr) {
+              const a = parseFloat(lr[1]),
+                b = parseFloat(lr[3])
+              const out = { min: Math.min(a, b), max: Math.max(a, b) }
+              out[lr[2].toUpperCase()] = a
+              out[lr[4].toUpperCase()] = b
+              return out
+            }
+            const r = String(str).match(
+              /(-?\d+(?:\.\d+)?)\s*(?:[a-zA-Z]+\s*)?-\s*(-?\d+(?:\.\d+)?)/,
+            )
+            if (r) {
+              const a = parseFloat(r[1]),
+                b = parseFloat(r[2])
+              return { min: Math.min(a, b), max: Math.max(a, b) }
+            }
+            const single = firstNum(str)
+            return single !== null ? { min: single, max: single } : null
+          }
+
+          const asymSide = (str) => {
+            const m = String(str || '').match(/(Left|Right|L|R)/i)
+            if (!m) return null
+            return m[1].toLowerCase().startsWith('l') ? 'L' : 'R'
+          }
+
+          const buildLR = (rangeStr, asymStr) => {
+            const r = parseRange(rangeStr)
+            if (!r) return { L: 0, R: 0 }
+            if (r.L !== undefined && r.R !== undefined)
+              return { L: r.L, R: r.R }
+            const side = asymSide(asymStr)
+            if (side === 'L') return { L: r.max, R: r.min }
+            if (side === 'R') return { L: r.min, R: r.max }
+            return { L: r.max, R: r.min }
+          }
+
+          const athlete = {
+            name: get(2),
+            sport: get(7),
+            sex: get(4),
+            age: '',
+            height: get(5) ? get(5) + ' cm' : '',
+            weight: get(6) ? get(6) + ' kg' : '',
+            date: get(1),
+            profile: '',
+          }
+
+          // 1. CMJ — Jump Height (in)
+          const cmjRange = get(9),
+            cmjAvg = get(10)
+          const cmjN = firstNum(cmjAvg)
+          const cmj = [
+            '',
+            '',
+            cmjN !== null ? cmjN + ' in' : '',
+            'Average: ' +
+              (cmjAvg || '—') +
+              ' in | Range: ' +
+              (cmjRange || '—') +
+              ' in',
+            '—',
+          ]
+
+          // 1. Drop Jump RSI
+          const djRange = get(17),
+            djAvg = get(18)
+          const djN = firstNum(djAvg)
+          const dj = [
+            '',
+            '',
+            djN !== null ? String(djN) : '',
+            'Average: ' + (djAvg || '—') + ' | Range: ' + (djRange || '—'),
+            '—',
+          ]
+
+          // 2. IMTP — Peak Vertical Force / BM, plus IMTP asymmetry (used for both PVF asym and RFD asym donut)
+          const pvfAvg = get(20)
+          const pvfN = firstNum(pvfAvg)
+          const imtpAsymStr = get(21)
+          const imtpAsymRange = parseRange(imtpAsymStr)
+          const imtpAsymPct = imtpAsymRange
+            ? (imtpAsymRange.min + imtpAsymRange.max) / 2
+            : null
+          const pvfAsymDisplay =
+            imtpAsymPct !== null
+              ? imtpAsymPct.toFixed(1) + '%'
+              : imtpAsymStr || '—'
+          const pvf = [
+            '',
+            pvfN !== null ? pvfN + ' N/kg' : '',
+            pvfAsymDisplay,
+            '—',
+          ]
+          // No RFD@200ms value in CSV — leave row null so populate skips
+          const rfd = null
+          const rfdAsym =
+            imtpAsymPct !== null ? ['', Math.round(imtpAsymPct)] : null
+
+          // 3. Shoulder rotations
+          const buildShoulder = (rIdx, aIdx, asymIdx) => {
+            const rangeStr = get(rIdx),
+              avgStr = get(aIdx),
+              asymStr = get(asymIdx)
+            const r = parseRange(rangeStr)
+            const lr = buildLR(rangeStr, asymStr)
+            const maxN = r ? r.max : firstNum(avgStr) || 0
+            const avgN = firstNum(avgStr) || 0
+            const asymN = firstNum(asymStr)
+            const asymOut =
+              asymN !== null ? asymN + '% L | ' + asymN + '% R' : '—'
+            return ['', maxN, avgN, lr.L, lr.R, asymOut]
+          }
+          const ir = buildShoulder(40, 41, 45)
+          const er = buildShoulder(34, 35, 39)
+
+          // 4. Hip adduction / abduction
+          const buildHip = (rIdx, aIdx, asymIdx) => {
+            const rangeStr = get(rIdx),
+              avgStr = get(aIdx),
+              asymStr = get(asymIdx)
+            const r = parseRange(rangeStr)
+            const lr = buildLR(rangeStr, asymStr)
+            const maxN = r ? r.max : firstNum(avgStr) || 0
+            const avgN = firstNum(avgStr) || 0
+            return ['', maxN, avgN, lr.L, lr.R, asymStr || '—']
+          }
+          const adduction = buildHip(22, 23, 27)
+          const abduction = buildHip(28, 29, 33)
+
+          // 5. Hand grip
+          const gmRangeStr = get(47),
+            gmAvgStr = get(48)
+          const gmRange = parseRange(gmRangeStr)
+          const gmMaxN = gmRange ? gmRange.max : firstNum(gmAvgStr)
+          const gmSide =
+            gmRange && gmRange.R !== undefined && gmRange.R === gmRange.max
+              ? 'R'
+              : gmRange && gmRange.L !== undefined && gmRange.L === gmRange.max
+              ? 'L'
+              : ''
+          const gripMax = ['', gmMaxN, gmSide, gmRangeStr, gmAvgStr]
+          const gripImp = null
+          const gripRfd = null
+          const gtRangeStr = get(49),
+            gtAvgStr = get(50)
+          const gtRange = parseRange(gtRangeStr)
+          const gtMinN = gtRange ? gtRange.min : firstNum(gtAvgStr)
+          const gripTtp = ['', gtMinN, 'MIN', gtRangeStr, gtAvgStr]
+
+          return {
+            athlete,
+            summaryText: '',
+            strengths: [],
+            improve: [],
+            quote: '',
+            cmj,
+            dj,
+            pvf,
+            rfd,
+            rfdAsym,
+            ir,
+            er,
+            adduction,
+            abduction,
+            gripMax,
+            gripImp,
+            gripRfd,
+            gripTtp,
+          }
+        }
         function gaugePct(v, min, max) {
           if (v === null || v === undefined) return 50
           const p = ((v - min) / (max - min)) * 100
@@ -1529,7 +1738,10 @@
             .toUpperCase()
             .replace(/\s+/g, '<br/>')
           $('summaryText').textContent = d.summaryText || ''
+          $('summaryText').style.display = d.summaryText ? '' : 'none'
           $('quoteText').textContent = d.quote || ''
+          const quoteBox = document.querySelector('.r-side .quote')
+          if (quoteBox) quoteBox.style.display = d.quote ? '' : 'none'
 
           // Strengths and Improve lists — use cropped icon assets
           const strengthIcons = [
@@ -1545,6 +1757,12 @@
           const renderList = (containerId, items, icons) => {
             const c = $(containerId)
             c.innerHTML = ''
+            const header = c.previousElementSibling
+            const hide = !items || items.length === 0
+            c.style.display = hide ? 'none' : ''
+            if (header && header.classList.contains('side-h'))
+              header.style.display = hide ? 'none' : ''
+            if (hide) return
             items.forEach((it, i) => {
               const src = icons[i % icons.length]
               const div = document.createElement('div')

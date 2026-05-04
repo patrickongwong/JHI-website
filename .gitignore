@@ -2,3 +2,7 @@
 .vscode/
 .idea/
 node_modules/
+
+# Sensitive sample athlete data (do not publish)
+JPC/
+test-results/
